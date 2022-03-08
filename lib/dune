@@ -1,0 +1,6 @@
+(library
+ (name unicanren)
+ (modules lib)
+ (preprocess
+  (pps ppx_inline_test))
+ (inline_tests))
