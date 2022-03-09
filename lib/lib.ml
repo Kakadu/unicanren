@@ -40,12 +40,14 @@ end
 (* State is syntax variables + subject variables
   TODO: map for relations
 *)
-type st = Value.t VarsMap.t * Value.t IntMap.t
-type error = [ `UnboundVariable of string ]
+type subst = Value.t IntMap.t
+type st = Value.t VarsMap.t * subst
+type error = [ `UnboundSyntaxVariable of string ]
 
 module State : sig
   type ('a, 'b) t
 
+  val fail : error -> ('a, 'b) t
   val return : 'b -> ('a, 'b) t
   val ( >>= ) : ('a, 'b) t -> ('b -> ('a, 'c) t) -> ('a, 'c) t
   val ( <*> ) : ('st, 'a -> 'b) t -> ('st, 'a) t -> ('st, 'b) t
@@ -57,9 +59,19 @@ module State : sig
   val read : ('a, 'a) t
   val lookup_var_syntax : string -> (st, Value.t option) t
   val lookup_var_logic : int -> (st, Value.t option) t
+  val put : st -> (st, unit) t
+
+  module List : sig
+    val foldlm
+      :  ('acc -> 'a -> ('st, 'acc) t)
+      -> ('st, 'acc) t
+      -> 'a list
+      -> ('st, 'acc) t
+  end
 end = struct
   type ('st, 'b) t = 'st -> ('st * 'b, error) Result.t
 
+  let fail e _st = Result.error e
   let return x st = Result.ok (st, x)
 
   let bind x f st =
@@ -95,9 +107,55 @@ end = struct
     let* _, map = read in
     return (IntMap.find_opt name map)
  ;;
+
+  let put st0 _st = return () st0
+
+  module List = struct
+    let rec foldlm f acc = function
+      | [] -> acc
+      | x :: xs -> foldlm f (acc >>= fun acc -> f acc x) xs
+    ;;
+  end
 end
 
-let rec eval =
+type 'a state = (st, 'a) State.t
+
+module Stream = struct
+  type 'a t =
+    | Nil
+    | Cons of 'a * 'a t Lazy.t
+    | Thunk of 'a t Lazy.t
+
+  let nil = Nil
+  let return x = Cons (x, lazy Nil)
+  let cons x xs = Cons (x, xs)
+  let from_fun zz = Thunk (lazy (zz ()))
+
+  let force = function
+    | Thunk (lazy zz) -> zz
+    | xs -> xs
+  ;;
+
+  let rec mplus : 'a. 'a t -> 'a t -> 'a t =
+   fun x y ->
+    match x, y with
+    | Nil, _ -> y
+    | Thunk l, r -> mplus r (Lazy.force l)
+    | Cons (x, l), r -> Cons (x, lazy (mplus r (Lazy.force l)))
+ ;;
+
+  let rec bind s f =
+    match s with
+    | Nil -> Nil
+    | Cons (x, s) -> mplus (f x) (from_fun (fun () -> bind (Lazy.force s) f))
+    | Thunk zz -> from_fun (fun () -> bind (Lazy.force zz) f)
+  ;;
+
+  (* TODO: I think wqe need monad transformer *)
+  let bindm : 'a 'b. 'a t state -> ('a -> 'b t) -> 'b t = fun s f -> assert false
+end
+
+let eval =
   let open State in
   let open State.Syntax in
   let rec walk : Value.t -> (st, Value.t) t = function
@@ -109,18 +167,39 @@ let rec eval =
     | Symbol s -> return (Value.symbol s)
     | Cons (l, r) -> return Value.cons <*> walk l <*> walk r
     | Nil -> return Value.Nil
-    (* | _ -> term *)
   in
-  let eval_goal root =
-    let* root = root in
+  let rec eval root : (st, subst Stream.t) State.t =
     match root with
     | Unify (l, r) ->
-      (match unify Subst.empty l r with
-      | _ -> assert false)
-    | _ -> assert false
-  and eval_term t =
-    let* t = t in
-    t
+      let* l = eval_term l in
+      let* r = eval_term r in
+      let* svars, lvars = read in
+      (match unify lvars l r with
+      | None -> assert false
+      | Some subst2 ->
+        let* () = put (svars, subst2) in
+        return (Stream.return subst2))
+    | Conde [] -> assert false
+    | Conde (x :: xs) ->
+      List.foldlm (fun acc x -> return (Stream.mplus acc) <*> eval x) (eval x) xs
+    | Conj [] -> assert false
+    | Conj [ x ] -> eval x
+    | Conj (x :: xs) ->
+      let* str1 = eval x in
+      (* return (Stream.bind) *)
+      let* svars, lvars = read in
+      (* let _ = Stream.bind str1 (fun s -> ) in *)
+      assert false
+    | Fresh _ | Call (_, _) -> failwith "Not implemented"
+  and eval_term = function
+    | Nil -> return Value.Nil
+    | Symbol s -> return (Value.symbol s)
+    | Cons (l, r) -> return Value.cons <*> eval_term l <*> eval_term r
+    | Var s ->
+      let* next = lookup_var_syntax s in
+      (match next with
+      | None -> fail (`UnboundSyntaxVariable s)
+      | Some t2 -> return t2)
   in
-  eval_goal
+  eval
 ;;
