@@ -1,6 +1,12 @@
 (library
  (name unicanren)
  (modules lib)
+ (libraries
+  ;GT
+  )
  (preprocess
-  (pps ppx_inline_test))
+  (pps
+   ppx_inline_test
+   ;GT.ppx_all
+   ))
  (inline_tests))
