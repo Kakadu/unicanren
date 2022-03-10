@@ -1,3 +1,5 @@
+open Format
+
 type term =
   | Var of string
   | Symbol of string
@@ -11,9 +13,11 @@ type goal =
   | Fresh of string * goal
   | Call of string * term list
 
-module Value = struct
-  (* open GT *)
+module Subst = struct
+  include Map.Make (Int)
+end
 
+module Value = struct
   type t =
     | Var of int
     | Symbol of string
@@ -23,15 +27,46 @@ module Value = struct
   let var x = Var x
   let symbol s = Symbol s
   let cons x y = Cons (x, y)
+
+  let rec pp ppf = function
+    | Var n -> Format.fprintf ppf "_.%d" n
+    | Symbol s -> Format.fprintf ppf "'%s" s
+    | Cons (l, r) -> Format.fprintf ppf "(cons (%a) (%a))" pp l pp r
+    | Nil -> Format.fprintf ppf "nil"
+  ;;
+
+  let rec walk subst : t -> t = function
+    | Var v ->
+      (match Subst.find v subst with
+      | exception Not_found -> Var v
+      | t2 -> walk subst t2)
+    | Symbol s -> Symbol s
+    | Cons (l, r) -> cons (walk subst l) (walk subst r)
+    | Nil -> Nil
+  ;;
 end
 
-module Subst = struct
-  include Map.Make (Int)
-end
+let pp_subst ppf s = Subst.iter (fun n -> Format.fprintf ppf "%d -> %a\n%!" n Value.pp) s
 
-let unify acc _ _ = None
-
-module IntMap = Map.Make (Int)
+let rec unify acc x y =
+  (* printf "Calling unify of `%a` and `%a`\n%!" Value.pp x Value.pp y; *)
+  match Value.walk acc x, Value.walk acc y with
+  | Value.Var n, Value.Var m when n = m -> Some acc
+  | Var _, Var _ -> None
+  | Symbol m, Symbol n when n = m -> Some acc
+  | Symbol _, Symbol _ -> None
+  | Nil, Nil -> Some acc
+  | rhs, Var n | Var n, rhs -> Some (Subst.add n rhs acc)
+  | Cons (l1, r1), Cons (l2, r2) ->
+    let open Base.Option in
+    unify acc l1 l2 >>= fun acc -> unify acc r1 r2
+  | Symbol _, Cons (_, _)
+  | Cons (_, _), Symbol _
+  | Nil, Cons (_, _)
+  | Cons (_, _), Nil
+  | Symbol _, Nil
+  | Nil, Symbol _ -> None
+;;
 
 module VarsMap = struct
   include Map.Make (String)
@@ -40,7 +75,7 @@ end
 (* State is syntax variables + subject variables
   TODO: map for relations
 *)
-type subst = Value.t IntMap.t
+type subst = Value.t Subst.t
 
 module State = struct
   type t =
@@ -49,7 +84,9 @@ module State = struct
     ; rels : (string * string list * goal) VarsMap.t
     }
 
-  let empty = { svars = VarsMap.empty; lvars = IntMap.empty; rels = VarsMap.empty }
+  let empty = { svars = VarsMap.empty; lvars = Subst.empty; rels = VarsMap.empty }
+  let add_var name t st = { st with svars = VarsMap.add name t st.svars }
+  let add_var_logic idx t st = { st with lvars = Subst.add idx t st.lvars }
 end
 
 type st = State.t
@@ -133,7 +170,7 @@ end = struct
    fun name ->
     let open Syntax in
     let* { State.lvars; _ } = read in
-    return (IntMap.find_opt name lvars)
+    return (Subst.find_opt name lvars)
  ;;
 
   let put st0 _st = return () st0
@@ -233,6 +270,16 @@ module Stream = struct
       (* Bullshit ? *)
       from_funm (fun () -> bindm (return (Lazy.force zz)) f)
  ;;
+
+  let take ?(n = -1) =
+    let rec helper n = function
+      | Nil -> []
+      | _ when n = 0 -> []
+      | Cons (s, (lazy tl)) -> s :: helper (n - 1) tl
+      | Thunk (lazy zz) -> helper n zz
+    in
+    helper n
+  ;;
 end
 
 let next_logic_var =
@@ -316,3 +363,27 @@ let%test _ =
   StateMonad.run (eval (Unify (Var "x", Var "y"))) State.empty
   = Result.error (`UnboundSyntaxVariable "x")
 ;;
+
+let%expect_test _ =
+  let goal = Unify (Symbol "x", Symbol "y") in
+  StateMonad.run (eval goal) State.empty
+  |> Result.get_ok
+  |> Stream.take ~n:(-1)
+  |> List.iter (fun _st -> Format.printf "AAA\n%!");
+  [%expect {|  |}]
+;;
+
+let%expect_test _ =
+  let goal = Unify (Var "x", Symbol "y") in
+  StateMonad.run
+    (eval goal)
+    State.(add_var_logic 10 (Symbol "y") @@ add_var "x" (Symbol "y") empty)
+  |> Result.get_ok
+  |> Stream.take ~n:(-1)
+  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
+  [%expect {| 10 -> 'y |}]
+;;
+(* let%test_unit "rev" =
+  let open Base in
+  [%test_eq: int list] (List.rev [ 3; 2; 1 ]) [ 3; 2; 1 ]
+;; *)
