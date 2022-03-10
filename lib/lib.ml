@@ -41,25 +41,44 @@ end
   TODO: map for relations
 *)
 type subst = Value.t IntMap.t
-type st = Value.t VarsMap.t * subst
-type error = [ `UnboundSyntaxVariable of string ]
 
-module State : sig
+module State = struct
+  type t =
+    { svars : Value.t VarsMap.t
+    ; lvars : subst
+    ; rels : (string * string list * goal) VarsMap.t
+    }
+
+  let empty = { svars = VarsMap.empty; lvars = IntMap.empty; rels = VarsMap.empty }
+end
+
+type st = State.t
+
+type error =
+  [ `UnboundSyntaxVariable of string
+  | `BadArity
+  ]
+
+module StateMonad : sig
   type ('a, 'b) t
 
   val fail : error -> ('a, 'b) t
   val return : 'b -> ('a, 'b) t
   val ( >>= ) : ('a, 'b) t -> ('b -> ('a, 'c) t) -> ('a, 'c) t
   val ( <*> ) : ('st, 'a -> 'b) t -> ('st, 'a) t -> ('st, 'b) t
+  val ( >>| ) : ('st, 'a) t -> ('a -> 'b) -> ('st, 'b) t
 
   module Syntax : sig
     val ( let* ) : ('a, 'b) t -> ('b -> ('a, 'c) t) -> ('a, 'c) t
   end
 
+  val run : ('st, 'r) t -> 'st -> ('r, error) Result.t
   val read : ('a, 'a) t
   val lookup_var_syntax : string -> (st, Value.t option) t
   val lookup_var_logic : int -> (st, Value.t option) t
   val put : st -> (st, unit) t
+  val put_svars : Value.t VarsMap.t -> (st, unit) t
+  val put_lvars : subst -> (st, unit) t
 
   module List : sig
     val foldlm
@@ -67,12 +86,21 @@ module State : sig
       -> ('st, 'acc) t
       -> 'a list
       -> ('st, 'acc) t
+
+    val foldl2m
+      :  on_fail:('st, 'acc) t
+      -> ('acc -> 'a -> 'b -> ('st, 'acc) t)
+      -> ('st, 'acc) t
+      -> 'a list
+      -> 'b list
+      -> ('st, 'acc) t
   end
 end = struct
   type ('st, 'b) t = 'st -> ('st * 'b, error) Result.t
 
   let fail e _st = Result.error e
   let return x st = Result.ok (st, x)
+  let ( >>| ) x f st = Result.map (fun (st, x) -> st, f x) (x st)
 
   let bind x f st =
     match x st with
@@ -86,7 +114,7 @@ end = struct
   ;;
 
   let ( >>= ) = bind
-  let run st m = snd (m st)
+  let run : (_, _) t -> _ -> _ = fun m st -> Result.map snd (m st)
 
   module Syntax = struct
     let ( let* ) = bind
@@ -97,28 +125,58 @@ end = struct
   let lookup_var_syntax : string -> (st, Value.t option) t =
    fun name ->
     let open Syntax in
-    let* map, _ = read in
-    return (VarsMap.find_opt name map)
+    let* { State.svars; _ } = read in
+    return (VarsMap.find_opt name svars)
  ;;
 
   let lookup_var_logic : int -> (st, Value.t option) t =
    fun name ->
     let open Syntax in
-    let* _, map = read in
-    return (IntMap.find_opt name map)
+    let* { State.lvars; _ } = read in
+    return (IntMap.find_opt name lvars)
  ;;
 
   let put st0 _st = return () st0
+
+  let put_svars svars =
+    let open Syntax in
+    let* st = read in
+    put { st with State.svars }
+  ;;
+
+  let put_lvars map =
+    let open Syntax in
+    let* st = read in
+    put { st with State.lvars = map }
+  ;;
 
   module List = struct
     let rec foldlm f acc = function
       | [] -> acc
       | x :: xs -> foldlm f (acc >>= fun acc -> f acc x) xs
     ;;
+
+    let rec foldl2m :
+              'st 'b 'acc.
+              on_fail:('st, 'acc) t
+              -> ('acc -> 'a -> 'b -> ('st, 'acc) t)
+              -> ('st, 'acc) t
+              -> 'a list
+              -> 'b list
+              -> ('st, 'acc) t
+      =
+     fun ~on_fail f acc xs ys ->
+      let rec helper acc = function
+        | [], [] -> acc
+        | x :: xs, y :: ys -> helper (acc >>= fun acc -> f acc x y) (xs, ys)
+        | _ -> on_fail
+      in
+      helper acc (xs, ys)
+   ;;
   end
 end
 
-type 'a state = (st, 'a) State.t
+type 'a state = (st, 'a) StateMonad.t
 
 module Stream = struct
   type 'a t =
@@ -151,13 +209,43 @@ module Stream = struct
     | Thunk zz -> from_fun (fun () -> bind (Lazy.force zz) f)
   ;;
 
-  (* TODO: I think wqe need monad transformer *)
-  let bindm : 'a 'b. 'a t state -> ('a -> 'b t) -> 'b t = fun s f -> assert false
+  let from_funm : (unit -> 'a t state) -> 'a t state =
+   fun f ->
+    let open StateMonad in
+    (* Bullshit ? *)
+    return () >>= fun () -> f ()
+ ;;
+
+  (* TODO: I think we need monad transformer *)
+  let rec bindm : 'a 'b. 'a t state -> ('a -> 'b t state) -> 'b t state =
+   fun s f ->
+    let open StateMonad in
+    let open StateMonad.Syntax in
+    let* init = s in
+    match init with
+    | Nil -> return Nil
+    | Cons (x, s) ->
+      let* l = f x in
+      (* Bullshit ? *)
+      let* r = from_funm (fun () -> bindm (return @@ Lazy.force s) f) in
+      return @@ mplus l r
+    | Thunk zz ->
+      (* Bullshit ? *)
+      from_funm (fun () -> bindm (return (Lazy.force zz)) f)
+ ;;
 end
+
+let next_logic_var =
+  let last = ref 0 in
+  fun () ->
+    incr last;
+    !last
+;;
 
 let eval =
   let open State in
-  let open State.Syntax in
+  let open StateMonad in
+  let open StateMonad.Syntax in
   let rec walk : Value.t -> (st, Value.t) t = function
     | Value.Var v ->
       let* next = lookup_var_logic v in
@@ -168,16 +256,16 @@ let eval =
     | Cons (l, r) -> return Value.cons <*> walk l <*> walk r
     | Nil -> return Value.Nil
   in
-  let rec eval root : (st, subst Stream.t) State.t =
+  let rec eval root : (st, subst Stream.t) StateMonad.t =
     match root with
     | Unify (l, r) ->
       let* l = eval_term l in
       let* r = eval_term r in
-      let* svars, lvars = read in
+      let* ({ State.lvars } as st) = read in
       (match unify lvars l r with
-      | None -> assert false
+      | None -> return Stream.nil
       | Some subst2 ->
-        let* () = put (svars, subst2) in
+        let* () = put { st with lvars = subst2 } in
         return (Stream.return subst2))
     | Conde [] -> assert false
     | Conde (x :: xs) ->
@@ -185,12 +273,32 @@ let eval =
     | Conj [] -> assert false
     | Conj [ x ] -> eval x
     | Conj (x :: xs) ->
-      let* str1 = eval x in
-      (* return (Stream.bind) *)
-      let* svars, lvars = read in
-      (* let _ = Stream.bind str1 (fun s -> ) in *)
-      assert false
-    | Fresh _ | Call (_, _) -> failwith "Not implemented"
+      let* st = read in
+      Stream.bindm (eval x) (fun subst ->
+          put { st with lvars = subst } >>= fun () -> eval (Conj xs))
+    | Fresh (name, rhs) ->
+      let* st = read in
+      let term = Value.var (next_logic_var ()) in
+      let svars = VarsMap.add name term st.State.svars in
+      let* () = put { st with svars } in
+      eval rhs
+    | Call (fname, args) ->
+      (* failwith "Not implemented" *)
+      let* st = read in
+      (match VarsMap.find fname st.rels with
+      | exception Not_found -> assert false
+      | _, formal_args, body ->
+        assert (Stdlib.List.length formal_args = Stdlib.List.length args);
+        let* svars =
+          List.foldl2m
+            (fun acc name t -> eval_term t >>= fun t -> return (VarsMap.add name t acc))
+            (return st.svars)
+            formal_args
+            args
+            ~on_fail:(fail `BadArity)
+        in
+        let* () = put { st with svars } in
+        eval body)
   and eval_term = function
     | Nil -> return Value.Nil
     | Symbol s -> return (Value.symbol s)
@@ -202,4 +310,9 @@ let eval =
       | Some t2 -> return t2)
   in
   eval
+;;
+
+let%test _ =
+  StateMonad.run (eval (Unify (Var "x", Var "y"))) State.empty
+  = Result.error (`UnboundSyntaxVariable "x")
 ;;
