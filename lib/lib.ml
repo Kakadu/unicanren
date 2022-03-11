@@ -30,8 +30,8 @@ module Value = struct
 
   let pp =
     let need_par = function
-      | Var _ | Nil -> false
-      | Symbol _ | Cons (_, _) -> true
+      | Symbol _ | Var _ | Nil -> false
+      | Cons (_, _) -> true
     in
     let par p ppf x = if need_par x then fprintf ppf "(%a)" p x else p ppf x in
     let rec helper ppf = function
@@ -312,7 +312,7 @@ module Stream = struct
 end
 
 let next_logic_var =
-  let last = ref 0 in
+  let last = ref 10 in
   fun () ->
     incr last;
     !last
@@ -383,99 +383,3 @@ let eval =
   in
   eval
 ;;
-
-let%test _ =
-  StateMonad.run (eval (Unify (Var "x", Var "y"))) State.empty
-  = Result.error (`UnboundSyntaxVariable "x")
-;;
-
-let%expect_test _ =
-  let goal = Unify (Symbol "x", Symbol "y") in
-  StateMonad.run (eval goal) State.empty
-  |> Result.get_ok
-  |> Stream.take ~n:(-1)
-  |> List.iter (fun _st -> Format.printf "AAA\n%!");
-  [%expect {|  |}]
-;;
-
-let run_optimistically g st =
-  match StateMonad.run (eval g) st with
-  | Result.Ok r -> Stream.take ~n:(-1) r
-  | Result.Error e -> failwiths "Error: %a" pp_error e
-;;
-
-let%expect_test _ =
-  let goal = Unify (Var "x", Symbol "y") in
-  run_optimistically
-    goal
-    State.(add_var_logic 10 (Symbol "y") @@ add_var "x" (Symbol "y") empty)
-  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
-  [%expect {| _.10 -> 'y |}]
-;;
-
-let%expect_test _ =
-  let goal = Unify (Var "x", Cons (Symbol "y", Nil)) in
-  run_optimistically goal State.(add_var "x" (Var 10) empty)
-  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
-  [%expect {| _.10 -> cons ('y) nil |}]
-;;
-
-let%expect_test _ =
-  let goal = Conj [ Unify (Var "x", Cons (Symbol "y", Nil)); Unify (Var "x", Var "z") ] in
-  run_optimistically goal State.(empty |> "x" --> Var 10 |> "z" --> Var 11)
-  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
-  [%expect {|
-    _.10 -> cons ('y) nil
-    _.11 -> cons ('y) nil |}]
-;;
-
-let%expect_test _ =
-  let goal = Conde [ Unify (Var "x", Symbol "u"); Unify (Var "x", Symbol "v") ] in
-  run_optimistically goal State.(empty |> "x" --> Var 10)
-  |> List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n pp_subst st);
-  [%expect {|
-    0: _.10 -> 'u
-       1: _.10 -> 'v |}]
-;;
-
-let%expect_test _ =
-  let body =
-    Conde
-      [ Conj [ Unify (Var "xs", Nil); Unify (Var "ys", Var "xys") ]
-      ; Fresh
-          ( "h"
-          , Fresh
-              ( "tmp"
-              , Fresh
-                  ( "tl"
-                  , Conj
-                      [ Unify (Cons (Var "h", Var "tl"), Var "xs")
-                      ; Unify (Cons (Var "h", Var "tmp"), Var "xys")
-                      ; Call ("appendo", [ Var "tl"; Var "ys"; Var "tmp" ])
-                      ] ) ) )
-      ]
-  in
-  let goal =
-    Call
-      ( "appendo"
-      , [ Cons (Symbol "a", Nil); Cons (Symbol "b", Cons (Symbol "b", Nil)); Var "xys" ]
-      )
-  in
-  (run_optimistically
-     goal
-     State.(empty |> "xys" --> Var 10 |> add_rel "appendo" [ "xs"; "ys"; "xys" ] body)
-  |> fun xs ->
-  printf "@[<v>";
-  List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n pp_subst st) xs;
-  printf "@]");
-  [%expect {|
-    0: _.1 -> 'a
-       _.2 -> cons ('b) (cons ('b) nil)
-    _.3 -> nil
-    _.10 -> cons ('a) _.2 |}]
-;;
-
-(* let%test_unit "rev" =
-  let open Base in
-  [%test_eq: int list] (List.rev [ 3; 2; 1 ]) [ 3; 2; 1 ]
-;; *)
