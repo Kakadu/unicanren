@@ -28,11 +28,19 @@ module Value = struct
   let symbol s = Symbol s
   let cons x y = Cons (x, y)
 
-  let rec pp ppf = function
-    | Var n -> Format.fprintf ppf "_.%d" n
-    | Symbol s -> Format.fprintf ppf "'%s" s
-    | Cons (l, r) -> Format.fprintf ppf "(cons (%a) (%a))" pp l pp r
-    | Nil -> Format.fprintf ppf "nil"
+  let pp =
+    let need_par = function
+      | Var _ | Nil -> false
+      | Symbol _ | Cons (_, _) -> true
+    in
+    let par p ppf x = if need_par x then fprintf ppf "(%a)" p x else p ppf x in
+    let rec helper ppf = function
+      | Var n -> Format.fprintf ppf "_.%d" n
+      | Symbol s -> Format.fprintf ppf "'%s" s
+      | Cons (l, r) -> Format.fprintf ppf "cons %a %a" (par helper) l (par helper) r
+      | Nil -> Format.fprintf ppf "nil"
+    in
+    helper
   ;;
 
   let rec walk subst : t -> t = function
@@ -46,7 +54,11 @@ module Value = struct
   ;;
 end
 
-let pp_subst ppf s = Subst.iter (fun n -> Format.fprintf ppf "%d -> %a\n%!" n Value.pp) s
+let pp_subst ppf s =
+  Format.fprintf ppf "@[<v>";
+  Subst.iter (fun n -> Format.fprintf ppf "_.%d -> @[%a@]@ %!" n Value.pp) s;
+  Format.fprintf ppf "@]"
+;;
 
 let rec unify acc x y =
   (* printf "Calling unify of `%a` and `%a`\n%!" Value.pp x Value.pp y; *)
@@ -86,7 +98,10 @@ module State = struct
 
   let empty = { svars = VarsMap.empty; lvars = Subst.empty; rels = VarsMap.empty }
   let add_var name t st = { st with svars = VarsMap.add name t st.svars }
+  let ( --> ) = add_var
   let add_var_logic idx t st = { st with lvars = Subst.add idx t st.lvars }
+  let ( ->> ) = add_var_logic
+  let add_rel name args g st = { st with rels = VarsMap.add name (name, args, g) st.rels }
 end
 
 type st = State.t
@@ -95,6 +110,13 @@ type error =
   [ `UnboundSyntaxVariable of string
   | `BadArity
   ]
+
+let pp_error ppf = function
+  | `BadArity -> fprintf ppf "bad arity"
+  | `UnboundSyntaxVariable s -> fprintf ppf "Unbound variable: %s" s
+;;
+
+let failwiths fmt = kasprintf failwith fmt
 
 module StateMonad : sig
   type ('a, 'b) t
@@ -193,14 +215,14 @@ end = struct
       | x :: xs -> foldlm f (acc >>= fun acc -> f acc x) xs
     ;;
 
-    let rec foldl2m :
-              'st 'b 'acc.
-              on_fail:('st, 'acc) t
-              -> ('acc -> 'a -> 'b -> ('st, 'acc) t)
-              -> ('st, 'acc) t
-              -> 'a list
-              -> 'b list
-              -> ('st, 'acc) t
+    let foldl2m :
+          'st 'b 'acc.
+          on_fail:('st, 'acc) t
+          -> ('acc -> 'a -> 'b -> ('st, 'acc) t)
+          -> ('st, 'acc) t
+          -> 'a list
+          -> 'b list
+          -> ('st, 'acc) t
       =
      fun ~on_fail f acc xs ys ->
       let rec helper acc = function
@@ -221,6 +243,12 @@ module Stream = struct
     | Cons of 'a * 'a t Lazy.t
     | Thunk of 'a t Lazy.t
 
+  let rec pp ppf = function
+    | Nil -> fprintf ppf "Nil"
+    | Cons (_, (lazy tl)) -> fprintf ppf "(Cons (_, %a))" pp tl
+    | Thunk _ -> fprintf ppf "(Thunk _)"
+  ;;
+
   let nil = Nil
   let return x = Cons (x, lazy Nil)
   let cons x xs = Cons (x, xs)
@@ -233,6 +261,7 @@ module Stream = struct
 
   let rec mplus : 'a. 'a t -> 'a t -> 'a t =
    fun x y ->
+    (* printf "Stream.mplus of `%a` and `%a`\n%!" pp x pp y; *)
     match x, y with
     | Nil, _ -> y
     | Thunk l, r -> mplus r (Lazy.force l)
@@ -293,16 +322,6 @@ let eval =
   let open State in
   let open StateMonad in
   let open StateMonad.Syntax in
-  let rec walk : Value.t -> (st, Value.t) t = function
-    | Value.Var v ->
-      let* next = lookup_var_logic v in
-      (match next with
-      | None -> return (Value.var v)
-      | Some t2 -> walk t2)
-    | Symbol s -> return (Value.symbol s)
-    | Cons (l, r) -> return Value.cons <*> walk l <*> walk r
-    | Nil -> return Value.Nil
-  in
   let rec eval root : (st, subst Stream.t) StateMonad.t =
     match root with
     | Unify (l, r) ->
@@ -316,7 +335,13 @@ let eval =
         return (Stream.return subst2))
     | Conde [] -> assert false
     | Conde (x :: xs) ->
-      List.foldlm (fun acc x -> return (Stream.mplus acc) <*> eval x) (eval x) xs
+      let* st = read in
+      List.foldlm
+        (fun acc y ->
+          let* () = put st in
+          return (Stream.mplus acc) <*> eval y)
+        (eval x)
+        xs
     | Conj [] -> assert false
     | Conj [ x ] -> eval x
     | Conj (x :: xs) ->
@@ -373,16 +398,83 @@ let%expect_test _ =
   [%expect {|  |}]
 ;;
 
+let run_optimistically g st =
+  match StateMonad.run (eval g) st with
+  | Result.Ok r -> Stream.take ~n:(-1) r
+  | Result.Error e -> failwiths "Error: %a" pp_error e
+;;
+
 let%expect_test _ =
   let goal = Unify (Var "x", Symbol "y") in
-  StateMonad.run
-    (eval goal)
+  run_optimistically
+    goal
     State.(add_var_logic 10 (Symbol "y") @@ add_var "x" (Symbol "y") empty)
-  |> Result.get_ok
-  |> Stream.take ~n:(-1)
   |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
-  [%expect {| 10 -> 'y |}]
+  [%expect {| _.10 -> 'y |}]
 ;;
+
+let%expect_test _ =
+  let goal = Unify (Var "x", Cons (Symbol "y", Nil)) in
+  run_optimistically goal State.(add_var "x" (Var 10) empty)
+  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
+  [%expect {| _.10 -> cons ('y) nil |}]
+;;
+
+let%expect_test _ =
+  let goal = Conj [ Unify (Var "x", Cons (Symbol "y", Nil)); Unify (Var "x", Var "z") ] in
+  run_optimistically goal State.(empty |> "x" --> Var 10 |> "z" --> Var 11)
+  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
+  [%expect {|
+    _.10 -> cons ('y) nil
+    _.11 -> cons ('y) nil |}]
+;;
+
+let%expect_test _ =
+  let goal = Conde [ Unify (Var "x", Symbol "u"); Unify (Var "x", Symbol "v") ] in
+  run_optimistically goal State.(empty |> "x" --> Var 10)
+  |> List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n pp_subst st);
+  [%expect {|
+    0: _.10 -> 'u
+       1: _.10 -> 'v |}]
+;;
+
+let%expect_test _ =
+  let body =
+    Conde
+      [ Conj [ Unify (Var "xs", Nil); Unify (Var "ys", Var "xys") ]
+      ; Fresh
+          ( "h"
+          , Fresh
+              ( "tmp"
+              , Fresh
+                  ( "tl"
+                  , Conj
+                      [ Unify (Cons (Var "h", Var "tl"), Var "xs")
+                      ; Unify (Cons (Var "h", Var "tmp"), Var "xys")
+                      ; Call ("appendo", [ Var "tl"; Var "ys"; Var "tmp" ])
+                      ] ) ) )
+      ]
+  in
+  let goal =
+    Call
+      ( "appendo"
+      , [ Cons (Symbol "a", Nil); Cons (Symbol "b", Cons (Symbol "b", Nil)); Var "xys" ]
+      )
+  in
+  (run_optimistically
+     goal
+     State.(empty |> "xys" --> Var 10 |> add_rel "appendo" [ "xs"; "ys"; "xys" ] body)
+  |> fun xs ->
+  printf "@[<v>";
+  List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n pp_subst st) xs;
+  printf "@]");
+  [%expect {|
+    0: _.1 -> 'a
+       _.2 -> cons ('b) (cons ('b) nil)
+    _.3 -> nil
+    _.10 -> cons ('a) _.2 |}]
+;;
+
 (* let%test_unit "rev" =
   let open Base in
   [%test_eq: int list] (List.rev [ 3; 2; 1 ]) [ 3; 2; 1 ]
