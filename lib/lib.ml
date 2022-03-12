@@ -1,17 +1,30 @@
 open Format
 
-type term =
-  | Var of string
-  | Symbol of string
-  | Cons of term * term
-  | Nil
+module Term = struct
+  type t =
+    | Var of string
+    | Symbol of string
+    | Cons of t * t
+    | Nil
+
+  let cons a b = Cons (a, b)
+  let symbol s = Symbol s
+  let var n = Var n
+end
+
+open Term
+
+type term = Term.t
 
 type goal =
-  | Unify of term * term
+  | Unify of Term.t * Term.t
   | Conj of goal list
   | Conde of goal list
   | Fresh of string * goal
-  | Call of string * term list
+  | Call of string * Term.t list
+  | TraceSVars of string list
+
+let fresh = List.fold_right (fun n acc -> Fresh (n, acc))
 
 module Subst = struct
   include Map.Make (Int)
@@ -40,7 +53,7 @@ module Value = struct
       | Cons (l, r) -> Format.fprintf ppf "cons %a %a" (par helper) l (par helper) r
       | Nil -> Format.fprintf ppf "nil"
     in
-    helper
+    par helper
   ;;
 
   let rec walk subst : t -> t = function
@@ -108,12 +121,14 @@ type st = State.t
 
 type error =
   [ `UnboundSyntaxVariable of string
+  | `UnboundRelation of string
   | `BadArity
   ]
 
 let pp_error ppf = function
   | `BadArity -> fprintf ppf "bad arity"
   | `UnboundSyntaxVariable s -> fprintf ppf "Unbound variable: %s" s
+  | `UnboundRelation s -> fprintf ppf "Unbound realtion: %s" s
 ;;
 
 let failwiths fmt = kasprintf failwith fmt
@@ -140,6 +155,8 @@ module StateMonad : sig
   val put_lvars : subst -> (st, unit) t
 
   module List : sig
+    val mapm : ('a -> ('st, 'b) t) -> 'a list -> ('st, 'b list) t
+
     val foldlm
       :  ('acc -> 'a -> ('st, 'acc) t)
       -> ('st, 'acc) t
@@ -210,6 +227,11 @@ end = struct
   ;;
 
   module List = struct
+    let rec mapm f = function
+      | [] -> return []
+      | x :: xs -> return List.cons <*> f x <*> mapm f xs
+    ;;
+
     let rec foldlm f acc = function
       | [] -> acc
       | x :: xs -> foldlm f (acc >>= fun acc -> f acc x) xs
@@ -324,6 +346,19 @@ let eval =
   let open StateMonad.Syntax in
   let rec eval root : (st, subst Stream.t) StateMonad.t =
     match root with
+    | TraceSVars xs ->
+      let* { svars; lvars = subst } = read in
+      Format.printf
+        "  tracing: %a\n%!"
+        (pp_print_list ~pp_sep:pp_print_space (fun ppf name ->
+             fprintf
+               ppf
+               "%s = %a;"
+               name
+               Value.pp
+               (Value.walk subst (VarsMap.find name svars))))
+        xs;
+      return (Stream.return subst)
     | Unify (l, r) ->
       let* l = eval_term l in
       let* r = eval_term r in
@@ -331,6 +366,7 @@ let eval =
       (match unify lvars l r with
       | None -> return Stream.nil
       | Some subst2 ->
+        printf "\tUnificated `%a` and `%a`\n" Value.pp l Value.pp r;
         let* () = put { st with lvars = subst2 } in
         return (Stream.return subst2))
     | Conde [] -> assert false
@@ -353,14 +389,14 @@ let eval =
       let term = Value.var (next_logic_var ()) in
       let svars = VarsMap.add name term st.State.svars in
       let* () = put { st with svars } in
-      eval rhs
+      Stream.from_funm (fun () -> eval rhs)
     | Call (fname, args) ->
-      (* failwith "Not implemented" *)
       let* st = read in
       (match VarsMap.find fname st.rels with
-      | exception Not_found -> assert false
+      | exception Not_found -> fail (`UnboundRelation fname)
       | _, formal_args, body ->
         assert (Stdlib.List.length formal_args = Stdlib.List.length args);
+        (* TODO: let's try to create a new set of syntax variables *)
         let* svars =
           List.foldl2m
             (fun acc name t -> eval_term t >>= fun t -> return (VarsMap.add name t acc))
@@ -370,7 +406,15 @@ let eval =
             ~on_fail:(fail `BadArity)
         in
         let* () = put { st with svars } in
-        eval body)
+        let* walked_args =
+          List.mapm (fun t -> eval_term t >>| Value.walk st.lvars) args
+        in
+        printf
+          "Calling `%s %a`\n%!"
+          fname
+          (pp_print_list ~pp_sep:pp_print_space Value.pp)
+          walked_args;
+        eval body >>= fun x -> put_svars st.svars >>= fun () -> return x)
   and eval_term = function
     | Nil -> return Value.Nil
     | Symbol s -> return (Value.symbol s)
