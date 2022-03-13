@@ -1,8 +1,15 @@
 open Lib
 open Format
 
-let run_optimistically g st =
-  match StateMonad.run (eval g) st with
+let run_optimistically
+    ?(trace_svars = false)
+    ?(trace_uni = false)
+    ?(trace_calls = false)
+    g
+    st
+  =
+  printf "\nRunning: %a\n" pp_goal g;
+  match StateMonad.run (eval ~trace_svars ~trace_uni ~trace_calls g) st with
   | Result.Ok r -> Stream.take ~n:(-1) r
   | Result.Error e -> failwiths "Error: %a" pp_error e
 ;;
@@ -67,11 +74,16 @@ let default_env =
           ; Conj
               [ cons _1 Nil == n
               ; cons _1 Nil == m
+              ; TraceSVars [ "d"; "n"; "m"; "r" ]
               ; fresh
                   [ "a"; "c" ]
                   (Conj [ r == cons a c; Call ("full-addero", [ d; _1; _1; a; c ]) ])
               ]
-          ; Conj [ cons _1 Nil == n; Call ("gen-addero", [ d; n; m; r ]) ]
+          ; Conj
+              [ cons _1 Nil == n
+              ; TraceSVars [ "d"; "m"; "r" ]
+              ; Call ("gen-addero", [ d; n; m; r ])
+              ]
           ; Conj
               [ cons _1 Nil == m
               ; Call ("gt1o", [ n ])
@@ -84,16 +96,17 @@ let default_env =
        "gen-addero"
        [ "d"; "n"; "m"; "r" ]
        (fresh
-          [ "u"; "b"; "c"; "e"; "x"; "y"; "z" ]
+          [ "u"; "bb"; "c"; "e"; "x"; "y"; "z" ]
           (* TODO: renaming b -> v kind of helps but maybe there is an issue with clashing names somewhere else *)
           (Conj
              [ cons (var "u") (var "x") == var "n"
-             ; cons (var "b") (var "y") == var "m"
+             ; cons (var "bb") (var "y") == var "m"
              ; Call ("poso", [ Var "y" ])
              ; cons (var "c") (var "z") == var "r"
              ; Call ("poso", [ Var "z" ])
-             ; TraceSVars [ "b" ]
-             ; Call ("full-addero", [ Var "d"; Var "u"; Var "b"; Var "c"; Var "e" ])
+             ; TraceSVars [ "bb" ]
+             ; Call ("full-addero", [ Var "d"; Var "u"; Var "bb"; Var "c"; Var "e" ])
+             ; TraceSVars [ "c"; "e" ]
              ; Call ("addero", [ Var "e"; Var "x"; Var "y"; Var "z" ])
              ]))
   |> State.add_rel
@@ -101,11 +114,21 @@ let default_env =
        [ "n"; "m"; "k" ]
        (Call ("addero", [ _0; Var "n"; Var "m"; Var "k" ]))
 ;;
-(*
+
 let%expect_test _ =
   let goal = Call ("pluso", [ build_num 1; build_num 2; Var "q" ]) in
-  run_optimistically goal State.(empty |> "q" --> Var 10)
-  |> List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n pp_subst st);
+  run_optimistically goal State.(default_env |> "q" --> Var 10)
+  |> List.iter (fun st ->
+         Format.printf
+           "Result: @[%a = %a@]\n%!"
+           pp_goal
+           goal
+           Value.pp
+           (Value.walk st (Var 10)));
   [%expect {|
+    Running: (pluso (cons '1 '()) (cons '0 (cons '1 '()))
+    q)
+    Result: (pluso (cons '1 '()) (cons '0 (cons '1 '()))
+               q) = (cons '1 (cons '1 nil))
      |}]
-;; *)
+;;

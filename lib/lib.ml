@@ -10,6 +10,13 @@ module Term = struct
   let cons a b = Cons (a, b)
   let symbol s = Symbol s
   let var n = Var n
+
+  let rec pp ppf = function
+    | Var s -> fprintf ppf "%s" s
+    | Symbol s -> fprintf ppf "'%s" s
+    | Cons (l, r) -> fprintf ppf "(cons %a %a)" pp l pp r
+    | Nil -> fprintf ppf "'()"
+  ;;
 end
 
 open Term
@@ -23,6 +30,21 @@ type goal =
   | Fresh of string * goal
   | Call of string * Term.t list
   | TraceSVars of string list
+
+let pp_goal =
+  let rec helper ppf = function
+    | Unify (l, r) -> fprintf ppf "(== %a %a)" Term.pp l Term.pp r
+    | Conde [] | Conj [] -> assert false
+    | Conde xs ->
+      fprintf ppf "(conde [ %a ])" (pp_print_list ~pp_sep:pp_print_space helper) xs
+    | Conj xs -> pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " && ") helper ppf xs
+    | Fresh (s, g) -> fprintf ppf "(fresh (%s) %a)" s helper g
+    | Call (name, args) ->
+      fprintf ppf "(%s %a)" name (pp_print_list ~pp_sep:pp_print_space Term.pp) args
+    | TraceSVars _ -> fprintf ppf "(trace...)"
+  in
+  helper
+;;
 
 let fresh = List.fold_right (fun n acc -> Fresh (n, acc))
 
@@ -40,6 +62,9 @@ module Value = struct
   let var x = Var x
   let symbol s = Symbol s
   let cons x y = Cons (x, y)
+  let nil = Nil
+  let _0 = symbol "0"
+  let _1 = symbol "1"
 
   let pp =
     let need_par = function
@@ -65,6 +90,8 @@ module Value = struct
     | Cons (l, r) -> cons (walk subst l) (walk subst r)
     | Nil -> Nil
   ;;
+
+  let ppw s ppf x = pp ppf (walk s x)
 end
 
 let pp_subst ppf s =
@@ -77,7 +104,7 @@ let rec unify acc x y =
   (* printf "Calling unify of `%a` and `%a`\n%!" Value.pp x Value.pp y; *)
   match Value.walk acc x, Value.walk acc y with
   | Value.Var n, Value.Var m when n = m -> Some acc
-  | Var _, Var _ -> None
+  | Var n, (Var _m as rhs) -> Some (Subst.add n rhs acc)
   | Symbol m, Symbol n when n = m -> Some acc
   | Symbol _, Symbol _ -> None
   | Nil, Nil -> Some acc
@@ -95,6 +122,12 @@ let rec unify acc x y =
 
 module VarsMap = struct
   include Map.Make (String)
+
+  let pp onval ppf s =
+    Format.fprintf ppf "@[<v>";
+    iter (fun n -> Format.fprintf ppf "%s -> @[%a@]; %!" n onval) s;
+    Format.fprintf ppf "@]"
+  ;;
 end
 
 (* State is syntax variables + subject variables
@@ -340,7 +373,7 @@ let next_logic_var =
     !last
 ;;
 
-let eval =
+let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
   let open State in
   let open StateMonad in
   let open StateMonad.Syntax in
@@ -348,25 +381,30 @@ let eval =
     match root with
     | TraceSVars xs ->
       let* { svars; lvars = subst } = read in
-      Format.printf
-        "  tracing: %a\n%!"
-        (pp_print_list ~pp_sep:pp_print_space (fun ppf name ->
-             fprintf
-               ppf
-               "%s = %a;"
-               name
-               Value.pp
-               (Value.walk subst (VarsMap.find name svars))))
-        xs;
+      if trace_svars
+      then
+        Format.printf
+          "  TRACING: %a\n%!"
+          (pp_print_list ~pp_sep:pp_print_space (fun ppf name ->
+               fprintf
+                 ppf
+                 "%s = %a;"
+                 name
+                 Value.pp
+                 (Value.walk subst (VarsMap.find name svars))))
+          xs;
       return (Stream.return subst)
     | Unify (l, r) ->
       let* l = eval_term l in
       let* r = eval_term r in
       let* ({ State.lvars } as st) = read in
+      let ppw = Value.ppw lvars in
       (match unify lvars l r with
-      | None -> return Stream.nil
+      | None ->
+        if trace_uni then printf "\tUni-FAILED of `%a` and `%a`\n" ppw l ppw r;
+        return Stream.nil
       | Some subst2 ->
-        printf "\tUnificated `%a` and `%a`\n" Value.pp l Value.pp r;
+        if trace_uni then printf "\tUnificated `%a` and `%a`\n" ppw l ppw r;
         let* () = put { st with lvars = subst2 } in
         return (Stream.return subst2))
     | Conde [] -> assert false
@@ -397,23 +435,51 @@ let eval =
       | _, formal_args, body ->
         assert (Stdlib.List.length formal_args = Stdlib.List.length args);
         (* TODO: let's try to create a new set of syntax variables *)
-        let* svars =
-          List.foldl2m
-            (fun acc name t -> eval_term t >>= fun t -> return (VarsMap.add name t acc))
-            (return st.svars)
-            formal_args
-            args
-            ~on_fail:(fail `BadArity)
-        in
-        let* () = put { st with svars } in
         let* walked_args =
           List.mapm (fun t -> eval_term t >>| Value.walk st.lvars) args
         in
-        printf
-          "Calling `%s %a`\n%!"
-          fname
-          (pp_print_list ~pp_sep:pp_print_space Value.pp)
-          walked_args;
+        let* new_svars =
+          List.foldl2m
+            (fun acc name v -> return (VarsMap.add name v acc))
+            (return VarsMap.empty)
+            formal_args
+            walked_args
+            ~on_fail:(fail `BadArity)
+        in
+        if trace_calls
+        then (
+          printf
+            "args_itself = [ %a ]\n%!"
+            (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
+            new_svars;
+          printf
+            "old_svars = [ %a ]\n%!"
+            (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
+            st.svars);
+        let new_svars =
+          VarsMap.merge
+            (fun _k old new_ ->
+              match old, new_ with
+              | _, Some n -> Some n
+              | None, None -> assert false
+              | Some n, None -> Some n)
+            st.svars
+            new_svars
+        in
+        if trace_calls
+        then
+          printf
+            "new_svars = [ %a ]\n%!"
+            (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
+            new_svars;
+        let* () = put { st with svars = new_svars } in
+        if trace_calls
+        then
+          printf
+            "\027[0;31mCalling `%s %a`\027[0m\n%!"
+            fname
+            (pp_print_list ~pp_sep:pp_print_space Value.pp)
+            walked_args;
         eval body >>= fun x -> put_svars st.svars >>= fun () -> return x)
   and eval_term = function
     | Nil -> return Value.Nil
