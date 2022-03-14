@@ -26,30 +26,30 @@ let%expect_test _ =
   run_optimistically
     goal
     State.(add_var_logic 10 (Symbol "y") @@ add_var "x" (Symbol "y") empty)
-  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
+  |> List.iter (fun st -> Format.printf "%a\n%!" (Subst.pp Value.pp) st);
   [%expect {| _.10 -> 'y |}]
 ;;
 
 let%expect_test _ =
   let goal = Unify (Var "x", Cons (Symbol "y", Nil)) in
   run_optimistically goal State.(add_var "x" (Var 10) empty)
-  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
-  [%expect {| _.10 -> cons 'y nil |}]
+  |> List.iter (fun st -> Format.printf "%a\n%!" (Subst.pp Value.pp) st);
+  [%expect {| _.10 -> (cons 'y nil) |}]
 ;;
 
 let%expect_test _ =
   let goal = Conj [ Unify (Var "x", Cons (Symbol "y", Nil)); Unify (Var "x", Var "z") ] in
   run_optimistically goal State.(empty |> "x" --> Var 10 |> "z" --> Var 11)
-  |> List.iter (fun st -> Format.printf "%a\n%!" pp_subst st);
+  |> List.iter (fun st -> Format.printf "%a\n%!" (Subst.pp Value.pp) st);
   [%expect {|
-    _.10 -> cons 'y nil
-    _.11 -> cons 'y nil |}]
+    _.10 -> (cons 'y nil)
+    _.11 -> (cons 'y nil) |}]
 ;;
 
 let%expect_test _ =
   let goal = Conde [ Unify (Var "x", Symbol "u"); Unify (Var "x", Symbol "v") ] in
   run_optimistically goal State.(empty |> "x" --> Var 10)
-  |> List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n pp_subst st);
+  |> List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n (Subst.pp Value.pp) st);
   [%expect {|
     0: _.10 -> 'u
        1: _.10 -> 'v |}]
@@ -79,21 +79,17 @@ let%expect_test _ =
       , [ Cons (Symbol "a", Nil); Cons (Symbol "b", Cons (Symbol "c", Nil)); Var "xys" ]
       )
   in
-  (run_optimistically
-     goal
-     State.(
-       empty |> "xys" --> Var 10 |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  let env =
+    State.(
+      empty |> "xys" --> Var 10 |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  in
+  (run_optimistically goal env
   |> fun xs ->
   printf "@[<v>";
-  List.iteri
-    (fun _n st ->
-      (* Format.printf "@[<h>%d: %a@]%!" n pp_subst st; *)
-      printf "@[Answer: %a@]\n" Value.pp (Value.walk st (Value.var 10)))
-    xs;
+  List.iter (fun st -> printf "@[Answer: %a@]\n" (Value.ppw st) (Value.var 10)) xs;
   printf "@]%!");
-  [%expect
-    {|
-    Answer: cons 'a (cons 'b (cons 'c nil)) |}]
+  [%expect {|
+    Answer: (cons 'a (cons 'b (cons 'c nil))) |}]
 ;;
 
 let%expect_test _ =
@@ -114,17 +110,16 @@ let%expect_test _ =
        |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
   |> fun xs ->
   printf "@[<v>";
-  List.iteri
-    (fun _n st ->
-      (* Format.printf "@[<h>%d: %a@]%!" n pp_subst st; *)
-      printf "@[Answer: %a@]\n" Value.pp (Value.walk st (Value.var 10)))
+  List.iter
+    (fun st -> printf "@[Answer: %a@]\n" Value.pp (Value.walk st (Value.var 10)))
     xs;
   printf "@]%!");
-  [%expect {|
+  [%expect
+    {|
     Answer: nil
-    Answer: cons 'a nil
-    Answer: cons 'a (cons 'b nil)
-    Answer: cons 'a (cons 'b (cons 'c nil)) |}]
+    Answer: (cons 'a nil)
+    Answer: (cons 'a (cons 'b nil))
+    Answer: (cons 'a (cons 'b (cons 'c nil))) |}]
 ;;
 
 (* let%test_unit "rev" =
@@ -164,11 +159,9 @@ let%expect_test _ =
        |> add_rel "reverso" [ "xy"; "yx" ] reverso_body)
   |> fun xs ->
   printf "@[<v>";
-  List.iteri
-    (fun _n st ->
-      (* Format.printf "@[<h>%d: %a@]%!" n pp_subst st; *)
-      printf "@[Answer: %a@]\n" Value.pp (Value.walk st (Value.var 10)))
+  List.iter
+    (fun st -> printf "@[Answer: %a@]\n" Value.pp (Value.walk st (Value.var 10)))
     xs;
   printf "@]%!");
-  [%expect {| Answer: cons 'c (cons 'b (cons 'a nil)) |}]
+  [%expect {| Answer: (cons 'c (cons 'b (cons 'a nil))) |}]
 ;;

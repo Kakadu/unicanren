@@ -73,15 +73,13 @@ let default_env =
               ]
           ; Conj
               [ cons _1 Nil == n
-              ; cons _1 Nil == m
-              ; TraceSVars [ "d"; "n"; "m"; "r" ]
+              ; cons _1 Nil == m (* ; TraceSVars [ "d"; "n"; "m"; "r" ] *)
               ; fresh
                   [ "a"; "c" ]
                   (Conj [ r == cons a c; Call ("full-addero", [ d; _1; _1; a; c ]) ])
               ]
           ; Conj
-              [ cons _1 Nil == n
-              ; TraceSVars [ "d"; "m"; "r" ]
+              [ cons _1 Nil == n (* ; TraceSVars [ "d"; "m"; "r" ] *)
               ; Call ("gen-addero", [ d; n; m; r ])
               ]
           ; Conj
@@ -96,16 +94,16 @@ let default_env =
        "gen-addero"
        [ "d"; "n"; "m"; "r" ]
        (fresh
-          [ "u"; "bb"; "c"; "e"; "x"; "y"; "z" ]
+          [ "u"; "b"; "c"; "e"; "x"; "y"; "z" ]
           (* TODO: renaming b -> v kind of helps but maybe there is an issue with clashing names somewhere else *)
           (Conj
              [ cons (var "u") (var "x") == var "n"
-             ; cons (var "bb") (var "y") == var "m"
+             ; cons (var "b") (var "y") == var "m"
              ; Call ("poso", [ Var "y" ])
              ; cons (var "c") (var "z") == var "r"
              ; Call ("poso", [ Var "z" ])
-             ; TraceSVars [ "bb" ]
-             ; Call ("full-addero", [ Var "d"; Var "u"; Var "bb"; Var "c"; Var "e" ])
+             ; TraceSVars [ "b" ]
+             ; Call ("full-addero", [ Var "d"; Var "u"; Var "b"; Var "c"; Var "e" ])
              ; TraceSVars [ "c"; "e" ]
              ; Call ("addero", [ Var "e"; Var "x"; Var "y"; Var "z" ])
              ]))
@@ -125,7 +123,8 @@ let%expect_test _ =
            goal
            Value.pp
            (Value.walk st (Var 10)));
-  [%expect {|
+  [%expect
+    {|
     Running: (pluso (cons '1 '()) (cons '0 (cons '1 '()))
     q)
     Result: (pluso (cons '1 '()) (cons '0 (cons '1 '()))

@@ -21,15 +21,17 @@ end
 
 open Term
 
-type term = Term.t
-
 type goal =
   | Unify of Term.t * Term.t
   | Conj of goal list
-  | Conde of goal list
+  | Conde of goal list (* TODO: make non-empty list here *)
   | Fresh of string * goal
   | Call of string * Term.t list
   | TraceSVars of string list
+
+(** Goal smart constructor(s) *)
+
+let fresh = List.fold_right (fun n acc -> Fresh (n, acc))
 
 let pp_goal =
   let rec helper ppf = function
@@ -46,10 +48,14 @@ let pp_goal =
   helper
 ;;
 
-let fresh = List.fold_right (fun n acc -> Fresh (n, acc))
-
 module Subst = struct
   include Map.Make (Int)
+
+  let pp val_pp ppf s =
+    Format.fprintf ppf "@[<v>";
+    iter (fun n -> Format.fprintf ppf "_.%d -> @[%a@]@ %!" n val_pp) s;
+    Format.fprintf ppf "@]"
+  ;;
 end
 
 module Value = struct
@@ -76,7 +82,7 @@ module Value = struct
       | Var n -> Format.fprintf ppf "_.%d" n
       | Symbol s -> Format.fprintf ppf "'%s" s
       | Cons (l, r) -> Format.fprintf ppf "cons %a %a" (par helper) l (par helper) r
-      | Nil -> Format.fprintf ppf "nil"
+      | Nil -> fprintf ppf "nil"
     in
     par helper
   ;;
@@ -93,12 +99,6 @@ module Value = struct
 
   let ppw s ppf x = pp ppf (walk s x)
 end
-
-let pp_subst ppf s =
-  Format.fprintf ppf "@[<v>";
-  Subst.iter (fun n -> Format.fprintf ppf "_.%d -> @[%a@]@ %!" n Value.pp) s;
-  Format.fprintf ppf "@]"
-;;
 
 let rec unify acc x y =
   (* printf "Calling unify of `%a` and `%a`\n%!" Value.pp x Value.pp y; *)
