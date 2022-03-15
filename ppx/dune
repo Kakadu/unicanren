@@ -1,0 +1,9 @@
+(executable
+ (name pp_deep)
+ (libraries ppx_deep)
+ (flags
+  (:standard -linkall))
+ (modules pp_deep))
+
+(cram
+ (deps ./pp_deep.exe))

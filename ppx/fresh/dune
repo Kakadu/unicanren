@@ -1,0 +1,9 @@
+(library
+ (name ppx_deep)
+ ;(public_name OCanren-ppx.ppx_fresh)
+ (kind ppx_rewriter)
+ (libraries base ppxlib)
+ (modules ppx_deep)
+ (inline_tests)
+ (preprocess
+  (pps ppx_inline_test ppx_expect ppxlib.metaquot)))
