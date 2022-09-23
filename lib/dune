@@ -4,14 +4,14 @@
  (libraries
   ;GT
   )
- (instrumentation
-  (backend bisect_ppx))
+ ;  (instrumentation
+ ;   (backend bisect_ppx))
  (preprocess
   (pps
    ppx_inline_test
    ppx_assert
    ppx_expect
-   bisect_ppx
+   ;bisect_ppx
    ;GT.ppx_all
    ))
  (inline_tests))

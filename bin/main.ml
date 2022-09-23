@@ -23,24 +23,24 @@ let () =
   let goal = Call ("addero", [ Symbol "1"; build_num 0; build_num 1; Var "q" ]) in
   run_optimistically goal State.(default_env |> "q" --> Var 10)
   |> List.iter (fun st ->
-         Format.printf
-           "Result: @[%a = %a@]\n%!"
-           pp_goal
-           goal
-           Value.pp
-           (Value.walk st (Var 10)))
+       Format.printf
+         "Result: @[%a = %a@]\n%!"
+         pp_goal
+         goal
+         Value.pp
+         (Value.walk st (Var 10)))
 ;;
 
 let () =
   let goal = Call ("addero", [ Symbol "0"; build_num 0; build_num 1; Var "q" ]) in
   run_optimistically goal State.(default_env |> "q" --> Var 10)
   |> List.iter (fun st ->
-         Format.printf
-           "Result: @[%a = %a@]\n%!"
-           pp_goal
-           goal
-           Value.pp
-           (Value.walk st (Var 10)))
+       Format.printf
+         "Result: @[%a = %a@]\n%!"
+         pp_goal
+         goal
+         Value.pp
+         (Value.walk st (Var 10)))
 ;;
 
 let () =
@@ -54,29 +54,29 @@ let () =
       let open Value in
       default_env |> "q" --> Var 10)
   |> List.iter (fun st ->
-         Format.printf
-           "Result: @[%a = %a@]\n%!"
-           pp_goal
-           goal
-           Value.pp
-           (Value.walk st (Var 10)))
+       Format.printf
+         "Result: @[%a = %a@]\n%!"
+         pp_goal
+         goal
+         Value.pp
+         (Value.walk st (Var 10)))
 ;;
 
 let __ () =
   let goal = Call ("addero", [ Symbol "0"; build_num 1; build_num 1; Var "q" ]) in
   run_optimistically goal State.(default_env |> "q" --> Var 10)
   |> List.iter (fun st ->
-         Format.printf "(addero 0 '(1) '(1)) = %a\n%!" Value.pp (Value.walk st (Var 10)))
+       Format.printf "(addero 0 '(1) '(1)) = %a\n%!" Value.pp (Value.walk st (Var 10)))
 ;;
 
 let __ () =
   let goal = Call ("gen-addero", [ Symbol "0"; build_num 1; build_num 1; Var "q" ]) in
   run_optimistically goal State.(default_env |> "q" --> Var 10)
   |> List.iter (fun st ->
-         Format.printf
-           "(gen-addero '0 '(1) '(1)) = %a\n%!"
-           Value.pp
-           (Value.walk st (Var 10)))
+       Format.printf
+         "(gen-addero '0 '(1) '(1)) = %a\n%!"
+         Value.pp
+         (Value.walk st (Var 10)))
 ;;
 
 let __ () =
@@ -88,7 +88,7 @@ let __ () =
 let __ () =
   let goal = Call ("poso", [ build_num 1 ]) in
   run_optimistically goal default_env
-  |> List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n pp_subst st)
+  |> List.iteri (fun n st -> Format.printf "@[<h>%d: %a@]%!" n (Subst.pp Value.pp) st)
 ;;
 
 let _ = exit 1
@@ -97,16 +97,16 @@ let () =
   let goal = Call ("addero", [ Symbol "0"; build_num 1; build_num 1; Var "q" ]) in
   run_optimistically goal State.(default_env |> "q" --> Var 10)
   |> List.iter (fun st ->
-         (* Format.printf "@[<h>%d: %a@]%!" n pp_subst st; *)
-         Format.printf "(addero 0 (1) (1)) = %a\n%!" Value.pp (Value.walk st (Var 10)))
+       (* Format.printf "@[<h>%d: %a@]%!" n pp_subst st; *)
+       Format.printf "(addero 0 (1) (1)) = %a\n%!" Value.pp (Value.walk st (Var 10)))
 ;;
 
 let __ () =
   let goal = Call ("pluso", [ build_num 0; build_num 2; Var "q" ]) in
   run_optimistically goal State.(default_env |> "q" --> Var 10)
   |> List.iter (fun st ->
-         (* Format.printf "@[<h>%d: %a@]%!" n pp_subst st; *)
-         Format.printf "0+2 = %a\n%!" Value.pp (Value.walk st (Var 10)))
+       (* Format.printf "@[<h>%d: %a@]%!" n pp_subst st; *)
+       Format.printf "0+2 = %a\n%!" Value.pp (Value.walk st (Var 10)))
 ;;
 
 let __ () =
@@ -115,10 +115,10 @@ let __ () =
   in
   run_optimistically goal State.(default_env |> "q" --> Var 10 |> "r" --> Var 11)
   |> List.iteri (fun _ st ->
-         Format.printf
-           "\t q = %a, r=%a\n%!"
-           Value.pp
-           (Value.walk st (Var 10))
-           Value.pp
-           (Value.walk st (Var 11)))
+       Format.printf
+         "\t q = %a, r=%a\n%!"
+         Value.pp
+         (Value.walk st (Var 10))
+         Value.pp
+         (Value.walk st (Var 11)))
 ;;
