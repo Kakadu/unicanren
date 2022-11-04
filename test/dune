@@ -1,4 +1,8 @@
-(test
- (name unicanren)
+(executable
+ (name u)
+ (libraries unicanren)
  (preprocess
   (pps ppx_inline_test)))
+
+(cram
+ (deps ./u.exe))
