@@ -2,11 +2,11 @@ open Lib
 open Format
 
 let run_optimistically
-    ?(trace_svars = false)
-    ?(trace_uni = false)
-    ?(trace_calls = false)
-    g
-    st
+  ?(trace_svars = false)
+  ?(trace_uni = false)
+  ?(trace_calls = false)
+  g
+  st
   =
   printf "\nRunning: %a\n" pp_goal g;
   match StateMonad.run (eval ~trace_svars ~trace_uni ~trace_calls g) st with
@@ -117,17 +117,40 @@ let%expect_test _ =
   let goal = Call ("pluso", [ build_num 1; build_num 2; Var "q" ]) in
   run_optimistically goal State.(default_env |> "q" --> Var 10)
   |> List.iter (fun st ->
-         Format.printf
-           "Result: @[%a = %a@]\n%!"
-           pp_goal
-           goal
-           Value.pp
-           (Value.walk st (Var 10)));
+       Format.printf
+         "Result: @[%a = %a@]\n%!"
+         pp_goal
+         goal
+         Value.pp
+         (Value.walk st (Var 10)));
   [%expect
     {|
     Running: (pluso (cons '1 '()) (cons '0 (cons '1 '()))
     q)
     Result: (pluso (cons '1 '()) (cons '0 (cons '1 '()))
                q) = (cons '1 (cons '1 nil))
+     |}]
+;;
+
+let%expect_test _ =
+  let goal =
+    Call
+      ( "pluso"
+      , [ Cons (Symbol "1", Nil); Cons (Symbol "0", Cons (Symbol "1", Nil)); Var "q" ] )
+  in
+  run_optimistically goal State.(default_env |> "q" --> Var 10)
+  |> List.iter (fun st ->
+       Format.printf
+         "Result: @[%a = %a@]\n%!"
+         pp_goal
+         goal
+         Value.pp
+         (Value.walk st (Var 10)));
+  [%expect {|
+    Running: (pluso (cons '1 '()) (cons '0 (cons '1 '()))
+    q)
+    Result: (pluso (cons '1 '()) (cons '0 (cons '1 '()))
+               q) = (cons '1 (cons '1 nil))
+
      |}]
 ;;

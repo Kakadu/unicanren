@@ -90,8 +90,8 @@ module Value = struct
   let rec walk subst : t -> t = function
     | Var v ->
       (match Subst.find v subst with
-      | exception Not_found -> Var v
-      | t2 -> walk subst t2)
+       | exception Not_found -> Var v
+       | t2 -> walk subst t2)
     | Symbol s -> Symbol s
     | Cons (l, r) -> cons (walk subst l) (walk subst r)
     | Nil -> Nil
@@ -219,7 +219,7 @@ end = struct
 
   let ( <*> ) f x st =
     Result.bind (f st) (fun (st, f) ->
-        Result.bind (x st) (fun (st, x) -> Result.Ok (st, f x)))
+      Result.bind (x st) (fun (st, x) -> Result.Ok (st, f x)))
   ;;
 
   let ( >>= ) = bind
@@ -386,12 +386,12 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
         Format.printf
           "  TRACING: %a\n%!"
           (pp_print_list ~pp_sep:pp_print_space (fun ppf name ->
-               fprintf
-                 ppf
-                 "%s = %a;"
-                 name
-                 Value.pp
-                 (Value.walk subst (VarsMap.find name svars))))
+             fprintf
+               ppf
+               "%s = %a;"
+               name
+               Value.pp
+               (Value.walk subst (VarsMap.find name svars))))
           xs;
       return (Stream.return subst)
     | Unify (l, r) ->
@@ -400,13 +400,13 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
       let* ({ State.lvars } as st) = read in
       let ppw = Value.ppw lvars in
       (match unify lvars l r with
-      | None ->
-        if trace_uni then printf "\tUni-FAILED of `%a` and `%a`\n" ppw l ppw r;
-        return Stream.nil
-      | Some subst2 ->
-        if trace_uni then printf "\tUnificated `%a` and `%a`\n" ppw l ppw r;
-        let* () = put { st with lvars = subst2 } in
-        return (Stream.return subst2))
+       | None ->
+         if trace_uni then printf "\tUni-FAILED of `%a` and `%a`\n%!" ppw l ppw r;
+         return Stream.nil
+       | Some subst2 ->
+         if trace_uni then printf "\tUnificated `%a` and `%a`\n%!" ppw l ppw r;
+         let* () = put { st with lvars = subst2 } in
+         return (Stream.return subst2))
     | Conde [] -> assert false
     | Conde (x :: xs) ->
       let* st = read in
@@ -421,7 +421,7 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
     | Conj (x :: xs) ->
       let* st = read in
       Stream.bindm (eval x) (fun subst ->
-          put { st with lvars = subst } >>= fun () -> eval (Conj xs))
+        put { st with lvars = subst } >>= fun () -> eval (Conj xs))
     | Fresh (name, rhs) ->
       let* st = read in
       let term = Value.var (next_logic_var ()) in
@@ -431,56 +431,56 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
     | Call (fname, args) ->
       let* st = read in
       (match VarsMap.find fname st.rels with
-      | exception Not_found -> fail (`UnboundRelation fname)
-      | _, formal_args, body ->
-        assert (Stdlib.List.length formal_args = Stdlib.List.length args);
-        (* TODO: let's try to create a new set of syntax variables *)
-        let* walked_args =
-          List.mapm (fun t -> eval_term t >>| Value.walk st.lvars) args
-        in
-        let* new_svars =
-          List.foldl2m
-            (fun acc name v -> return (VarsMap.add name v acc))
-            (return VarsMap.empty)
-            formal_args
-            walked_args
-            ~on_fail:(fail `BadArity)
-        in
-        if trace_calls
-        then (
-          printf
-            "args_itself = [ %a ]\n%!"
-            (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
-            new_svars;
-          printf
-            "old_svars = [ %a ]\n%!"
-            (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
-            st.svars);
-        let new_svars =
-          VarsMap.merge
-            (fun _k old new_ ->
-              match old, new_ with
-              | _, Some n -> Some n
-              | None, None -> assert false
-              | Some n, None -> Some n)
-            st.svars
-            new_svars
-        in
-        if trace_calls
-        then
-          printf
-            "new_svars = [ %a ]\n%!"
-            (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
-            new_svars;
-        let* () = put { st with svars = new_svars } in
-        if trace_calls
-        then
-          printf
-            "\027[0;31mCalling `%s %a`\027[0m\n%!"
-            fname
-            (pp_print_list ~pp_sep:pp_print_space Value.pp)
-            walked_args;
-        eval body >>= fun x -> put_svars st.svars >>= fun () -> return x)
+       | exception Not_found -> fail (`UnboundRelation fname)
+       | _, formal_args, body ->
+         assert (Stdlib.List.length formal_args = Stdlib.List.length args);
+         (* TODO: let's try to create a new set of syntax variables *)
+         let* walked_args =
+           List.mapm (fun t -> eval_term t >>| Value.walk st.lvars) args
+         in
+         let* new_svars =
+           List.foldl2m
+             (fun acc name v -> return (VarsMap.add name v acc))
+             (return VarsMap.empty)
+             formal_args
+             walked_args
+             ~on_fail:(fail `BadArity)
+         in
+         if trace_calls
+         then (
+           printf
+             "args_itself = [ %a ]\n%!"
+             (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
+             new_svars;
+           printf
+             "old_svars = [ %a ]\n%!"
+             (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
+             st.svars);
+         let new_svars =
+           VarsMap.merge
+             (fun _k old new_ ->
+               match old, new_ with
+               | _, Some n -> Some n
+               | None, None -> assert false
+               | Some n, None -> Some n)
+             st.svars
+             new_svars
+         in
+         if trace_calls
+         then
+           printf
+             "new_svars = [ %a ]\n%!"
+             (VarsMap.pp (fun ppf t -> Value.pp ppf (Value.walk st.lvars t)))
+             new_svars;
+         let* () = put { st with svars = new_svars } in
+         if trace_calls
+         then
+           printf
+             "\027[0;31mCalling `%s %a`\027[0m\n%!"
+             fname
+             (pp_print_list ~pp_sep:pp_print_space Value.pp)
+             walked_args;
+         eval body >>= fun x -> put_svars st.svars >>= fun () -> return x)
   and eval_term = function
     | Nil -> return Value.Nil
     | Symbol s -> return (Value.symbol s)
@@ -488,8 +488,8 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
     | Var s ->
       let* next = lookup_var_syntax s in
       (match next with
-      | None -> fail (`UnboundSyntaxVariable s)
-      | Some t2 -> return t2)
+       | None -> fail (`UnboundSyntaxVariable s)
+       | Some t2 -> return t2)
   in
   eval
 ;;
