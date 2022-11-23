@@ -36,7 +36,46 @@ val pp_goal : Format.formatter -> goal -> unit
 module Subst : sig
   type key = int
   type 'a t = 'a Map.Make(Int).t
-
+  val empty : 'a t
+  val is_empty : 'a t -> bool
+  val mem : key -> 'a t -> bool
+  val add : key -> 'a -> 'a t -> 'a t
+  val update : key -> ('a option -> 'a option) -> 'a t -> 'a t
+  val singleton : key -> 'a -> 'a t
+  val remove : key -> 'a t -> 'a t
+  val merge :
+    (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
+  val union : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
+  val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
+  val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+  val iter : (key -> 'a -> unit) -> 'a t -> unit
+  val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+  val for_all : (key -> 'a -> bool) -> 'a t -> bool
+  val exists : (key -> 'a -> bool) -> 'a t -> bool
+  val filter : (key -> 'a -> bool) -> 'a t -> 'a t
+  val filter_map : (key -> 'a -> 'b option) -> 'a t -> 'b t
+  val find : key -> 'a t -> 'a
+  val find_first_opt : (key -> bool) -> 'a t -> (key * 'a) option
+  val find_last : (key -> bool) -> 'a t -> key * 'a
+  val find_last_opt : (key -> bool) -> 'a t -> (key * 'a) option
+  val map : ('a -> 'b) -> 'a t -> 'b t
+  val mapi : (key -> 'a -> 'b) -> 'a t -> 'b t
+  val to_seq : 'a t -> (key * 'a) Seq.t
+  val to_rev_seq : 'a t -> (key * 'a) Seq.t
+  val to_seq_from : key -> 'a t -> (key * 'a) Seq.t
+  val add_seq : (key * 'a) Seq.t -> 'a t -> 'a t
+  val of_seq : (key * 'a) Seq.t -> 'a t
+  val find : key -> 'a t -> 'a
+  val bindings : 'a t -> (key * 'a) list
+  val min_binding : 'a t -> key * 'a
+  val min_binding_opt : 'a t -> (key * 'a) option
+  val max_binding : 'a t -> key * 'a
+  val max_binding_opt : 'a t -> (key * 'a) option
+  val choose : 'a t -> key * 'a
+  val choose_opt : 'a t -> (key * 'a) option
+  val split : key -> 'a t -> 'a t * 'a option * 'a t
+  val find_opt : key -> 'a t -> 'a option
+  val find_first : (key -> bool) -> 'a t -> key * 'a
   val pp : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 end
 
@@ -107,7 +146,11 @@ val failwiths : ('a, Format.formatter, unit, 'b) format4 -> 'a
 (** A monad module, to implement a miniKanren interpreter *)
 module StateMonad : sig
   type ('a, 'b) t
-
+  val fail : error -> ('a, 'b) t
+  val return : 'b -> ('a, 'b) t
+  val ( >>= ) : ('a, 'b) t -> ('b -> ('a, 'c) t) -> ('a, 'c) t
+  val ( <*> ) : ('st, 'a -> 'b) t -> ('st, 'a) t -> ('st, 'b) t
+  val ( >>| ) : ('st, 'a) t -> ('a -> 'b) -> ('st, 'b) t
   (** Main function to run something *)
   val run : ('st, 'r) t -> 'st -> ('r, error) result
 end
@@ -117,7 +160,14 @@ type 'a state = (st, 'a) StateMonad.t
 (** A stream of answers of calculation *)
 module Stream : sig
   type 'a t
-
+  (* type 'a t = Nil | Cons of 'a * 'a t lazy_t *)
+  (* val pp : formatter -> 'a t -> unit *)
+  val nil : 'a t
+  val return : 'a -> 'a t
+  val mplus : 'a t -> 'a t -> 'a t
+  val from_funm : (unit -> 'a t state) -> 'a t state
+  val bindm : 'a t state -> ('a -> 'b t state) -> 'b t state
+  val take : ?n:int -> 'a t -> 'a list
   val take : ?n:int -> 'a t -> 'a list
 end
 
