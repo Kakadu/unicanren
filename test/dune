@@ -1,8 +1,8 @@
 (executable
  (name u)
- (libraries unicanren)
+ (libraries unicanren domainslib)
  (preprocess
   (pps ppx_inline_test)))
-
+  
 (cram
  (deps ./u.exe))

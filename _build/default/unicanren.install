@@ -1,0 +1,8 @@
+lib: [
+  "_build/install/default/lib/unicanren/META"
+  "_build/install/default/lib/unicanren/dune-package"
+  "_build/install/default/lib/unicanren/opam"
+]
+bin: [
+  "_build/install/default/bin/unicanren"
+]
