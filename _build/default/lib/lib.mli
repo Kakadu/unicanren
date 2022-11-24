@@ -36,6 +36,7 @@ val pp_goal : Format.formatter -> goal -> unit
 module Subst : sig
   type key = int
   type 'a t = 'a Map.Make(Int).t
+
   val empty : 'a t
   val is_empty : 'a t -> bool
   val mem : key -> 'a t -> bool
@@ -43,8 +44,7 @@ module Subst : sig
   val update : key -> ('a option -> 'a option) -> 'a t -> 'a t
   val singleton : key -> 'a -> 'a t
   val remove : key -> 'a t -> 'a t
-  val merge :
-    (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
+  val merge : (key -> 'a option -> 'b option -> 'c option) -> 'a t -> 'b t -> 'c t
   val union : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
   val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
   val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
@@ -146,13 +146,44 @@ val failwiths : ('a, Format.formatter, unit, 'b) format4 -> 'a
 (** A monad module, to implement a miniKanren interpreter *)
 module StateMonad : sig
   type ('a, 'b) t
+
   val fail : error -> ('a, 'b) t
   val return : 'b -> ('a, 'b) t
   val ( >>= ) : ('a, 'b) t -> ('b -> ('a, 'c) t) -> ('a, 'c) t
   val ( <*> ) : ('st, 'a -> 'b) t -> ('st, 'a) t -> ('st, 'b) t
   val ( >>| ) : ('st, 'a) t -> ('a -> 'b) -> ('st, 'b) t
-  (** Main function to run something *)
+
+  module Syntax : sig
+    val ( let* ) : ('a, 'b) t -> ('b -> ('a, 'c) t) -> ('a, 'c) t
+  end
+
   val run : ('st, 'r) t -> 'st -> ('r, error) result
+  val read : ('a, 'a) t
+
+  (* val lookup_var_syntax : tag -> (st, Value.t option) t *)
+  val lookup_var_logic : int -> (st, Value.t option) t
+  val put : st -> (st, unit) t
+
+  (* val put_svars : Value.t VarsMap.t -> (st, unit) t *)
+  val put_lvars : subst -> (st, unit) t
+
+  module List : sig
+    val mapm : ('a -> ('st, 'b) t) -> 'a list -> ('st, 'b list) t
+
+    val foldlm
+      :  ('acc -> 'a -> ('st, 'acc) t)
+      -> ('st, 'acc) t
+      -> 'a list
+      -> ('st, 'acc) t
+
+    val foldl2m
+      :  on_fail:('st, 'acc) t
+      -> ('acc -> 'a -> 'b -> ('st, 'acc) t)
+      -> ('st, 'acc) t
+      -> 'a list
+      -> 'b list
+      -> ('st, 'acc) t
+  end
 end
 
 type 'a state = (st, 'a) StateMonad.t
@@ -160,6 +191,7 @@ type 'a state = (st, 'a) StateMonad.t
 (** A stream of answers of calculation *)
 module Stream : sig
   type 'a t
+
   (* type 'a t = Nil | Cons of 'a * 'a t lazy_t *)
   (* val pp : formatter -> 'a t -> unit *)
   val nil : 'a t

@@ -3,7 +3,7 @@ open Unicanren.Lib
 (* open Printf *)
 open Domainslib
 open Format
-
+(* 
 let res =
   StateMonad.run
     (eval
@@ -24,7 +24,7 @@ let res1 =
              (Var "a")
              (Cons (Symbol "gu", Cons (Symbol "hu", Cons (Symbol "su", Symbol "du")))))))
     State.empty
-;;
+;; *)
 
 (* let prin1 =
   res1
@@ -35,27 +35,42 @@ let res1 =
 
 let pool = Task.setup_pool ~num_domains:3 ()
 
-let summ acc y =
+let summ l r =
   let open StateMonad in
-  (* let open StateMonad.Syntax in *)
-  return (Stream.mplus acc) <*>  eval y
+  let open StateMonad.Syntax in
+  let* st = read in
+  eval l
+  >>= fun acc ->
+  (fun acc y ->
+    let* () = put st in
+    return (Stream.mplus acc) <*> eval y)
+    acc
+    r
 ;;
 
-let paraltest =
+(* let a = eval l >>= fun acc -> f acc l in *)
+
+(* let paraltest =
   Task.run pool (fun () ->
-    StateMonad.run
-      (eval
-         (fresh
-            [ "x" ]
-            (let a = Task.async pool (fun _ -> Unify (Var "x", Symbol "u")) in
-             let b = Task.async pool (fun _ -> Unify (Var "x", Symbol "v"))in
-             Conj[Task.await pool a;Task.await pool b]) ))
-      State.empty)
+    let a : goal Task.promise =
+      Task.async pool (fun _ -> fresh [ "x" ] (Unify (Var "x", Symbol "u")))
+    in
+    let b : goal Task.promise =
+      Task.async pool (fun _ -> fresh [ "x" ] (Unify (Var "x", Symbol "v")))
+    in
+    StateMonad.run (eval (Conj[Task.await pool a; Task.await pool b])) State.empty)  (*summ (Task.await pool a*)
+;; *)
+
+let res2 =
+  Task.run pool (fun () ->
+    let a = Task.async pool (fun _ -> fresh [ "x" ] (Unify (Var "x", Symbol "u"))) in
+    let b = Task.async pool (fun _ -> fresh [ "x" ] (Unify (Var "x", Symbol "v"))) in
+    StateMonad.run (summ (Task.await pool a) (Task.await pool b)) State.empty)
 ;;
 
 let prin1 =
-  paraltest
+  res2
   |> Result.get_ok
-  |> Stream.take ~n:1
+  |> Stream.take ~n:(-1)
   |> List.iter (fun _st -> Format.printf "%a" (Subst.pp Value.pp) _st)
 ;;
