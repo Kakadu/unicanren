@@ -3,7 +3,7 @@ open Unicanren.Lib
 (* open Printf *)
 open Domainslib
 open Format
-(* 
+(*
 let res =
   StateMonad.run
     (eval
@@ -58,7 +58,7 @@ let summ l r =
     in
     StateMonad.run (eval (Conj[Task.await pool a; Task.await pool b])) State.empty)  (*summ (Task.await pool a*)
 ;; *)
-
+let __ () =
 let res2 =
   Task.run pool (fun () ->
     let a =
@@ -68,9 +68,9 @@ let res2 =
       Task.async pool (fun _ -> eval (fresh [ "x" ] (Unify (Var "x", Symbol "v"))))
     in
     StateMonad.run (summ (Task.await pool a) (Task.await pool b)) State.empty)
-;;
+  in
 
-let prin1 =
+
   res2
   |> Result.get_ok
   |> Stream.take ~n:(-1)
@@ -136,23 +136,36 @@ let appendo_body =
 ;;
 
 let g = makerev funct 700  Nil
+let failwithf fmt = Format.kasprintf failwith fmt
 
-let par =
+let () =
   Task.run pool (fun () ->
     let goal = Call ("reverso", [ g; Var "xs" ]) in
-    let goal2 = Call ("reverso", [ g; Var "xs" ]) in
-    let a = Task.async pool (fun _ -> eval goal) in
-    let b = Task.async pool (fun _ -> eval goal2) in
-    StateMonad.run
-      (summ (Task.await pool a) (Task.await pool b))(*summ (Task.await pool a)*)
+    let state0 =
       State.(
         empty
         |> "xs" --> Var 10
         |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body
         |> add_rel "reverso" [ "xy"; "yx" ] reverso_body)
-    |> fun xs ->
-    xs
-    |> Result.get_ok
+    in
+    let wrap g =
+      let s = StateMonad.run (eval g) state0 in
+      let _ = Result.map (Stream.take ~n:1) s in
+      s
+    in
+    let pool = Task.setup_pool ~num_domains:2 () in
+    let a = Task.async pool (fun _ -> wrap goal) in
+    let b = Task.async pool (fun _ -> wrap goal) in
+    (match Task.await pool a, Task.await pool b with
+    | Result.Ok a, Result.Ok b -> Stream.mplus a b
+    | Ok _, Error _  (* -> failwiths "%s %d" __FILE__ __LINE__ *)
+    | Error _, Ok _ (* -> failwiths "%s %d" __FILE__ __LINE__ *)
+    | Error _, Error _ ->
+      (* Format.printf "%a\n%a\n%!" pp_error s1 pp_error s2; *)
+      failwithf "%s %d" __FILE__ __LINE__
+    )
     |> Stream.take ~n:(-1)
-    |> List.iter (fun st -> printf "%a\n" Value.pp (Value.walk st (Value.var 10))))
+    |> (fun xs -> Format.printf "Got %d answers\n%!" (List.length xs); xs)
+    |> List.iter (fun st ->
+      printf "%a\n" Value.pp (Value.walk st (Value.var 10))))
 ;;
