@@ -23,6 +23,7 @@ type goal =
   | Unify of Term.t * Term.t (** Unification *)
   | Conj of goal list (** Conjunction *)
   | Conde of goal list (** (interleaved) Disjunction *)
+  | CondeOf2 of goal * goal
   | Fresh of string * goal (** Creating of fresh (existential) variables *)
   | Call of string * Term.t list (** Call to another relation with arguments *)
   | TraceSVars of string list (** Tracing of some variables. Only for debugging *)
@@ -129,6 +130,10 @@ module State : sig
 end
 
 type st = State.t
+
+val makerev : ('a -> 'a) -> int -> 'a -> 'a
+
+val funct : Term.t -> Term.t
 
 type error =
   [ `BadArity

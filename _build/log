@@ -1,13 +1,13 @@
-# dune test
+# dune test --profile release
 # OCAMLPARAM: unset
 # Shared cache: disabled
 # Workspace root: /home/k0lba/Documents/unicanren
 # Auto-detected concurrency: 12
-$ /home/k0lba/.opam/5.0.0~beta1/bin/ocamlc.opt -config > /tmp/dune_98444b_output
+$ /home/k0lba/.opam/5.0.0~beta1/bin/ocamlc.opt -config > /tmp/dune_f0ae64_output
 # Dune context:
 #  { name = "default"
 #  ; kind = "default"
-#  ; profile = Dev
+#  ; profile = Release
 #  ; merlin = true
 #  ; for_host = None
 #  ; fdo_target_exe = None
@@ -115,26 +115,20 @@ $ /home/k0lba/.opam/5.0.0~beta1/bin/ocamlc.opt -config > /tmp/dune_98444b_output
 #      ; windows_unicode = false
 #      }
 #  }
-$ (cd _build/.sandbox/543520c2a770a28e1684aea24d078121/default && .ppx/bfcab61e6a21ecf6d2f80029fc1ef484/ppx.exe --cookie 'inline_tests="enabled"' -o test/u.pp.ml --impl test/u.ml -corrected-suffix .ppx-corrected -diff-cmd - -dump-ast)
-$ (cd _build/default && /home/k0lba/.opam/5.0.0~beta1/bin/ocamlopt.opt -w @1..3@5..28@30..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -9-26-33-39-27-32 -g -I test/.u.eobjs/byte -I test/.u.eobjs/native -I /home/k0lba/.opam/5.0.0~beta1/lib/base -I /home/k0lba/.opam/5.0.0~beta1/lib/base/base_internalhash_types -I /home/k0lba/.opam/5.0.0~beta1/lib/base/caml -I /home/k0lba/.opam/5.0.0~beta1/lib/base/shadow_stdlib -I /home/k0lba/.opam/5.0.0~beta1/lib/domainslib -I /home/k0lba/.opam/5.0.0~beta1/lib/jane-street-headers -I /home/k0lba/.opam/5.0.0~beta1/lib/lockfree -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_assert/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_compare/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_enumerate/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/collector -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/common -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/config -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/config_types -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_hash/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_here/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_inline_test/config -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_inline_test/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_sexp_conv/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/sexplib0 -I /home/k0lba/.opam/5.0.0~beta1/lib/time_now -I lib/.unicanren.objs/byte -I lib/.unicanren.objs/native -intf-suffix .ml -no-alias-deps -opaque -o test/.u.eobjs/native/dune__exe__U.cmx -c -impl test/u.pp.ml)
-> File "test/u.ml", line 5, characters 0-11:
-> 5 | open Format
->     ^^^^^^^^^^^
-> Warning 33 [unused-open]: unused open Stdlib.Format.
-> File "test/u.ml", line 71, characters 4-9:
-> 71 | let prin1 =
->          ^^^^^
-> Warning 32 [unused-value-declaration]: unused value prin1.
-$ (cd _build/default && /home/k0lba/.opam/5.0.0~beta1/bin/ocamlopt.opt -w @1..3@5..28@30..39@43@46..47@49..57@61..62@67@69-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -9-26-33-39-27-32 -g -o test/u.exe /home/k0lba/.opam/5.0.0~beta1/lib/ppx_inline_test/config/inline_test_config.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/base/base_internalhash_types/base_internalhash_types.cmxa -I /home/k0lba/.opam/5.0.0~beta1/lib/base/base_internalhash_types /home/k0lba/.opam/5.0.0~beta1/lib/base/caml/caml.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/sexplib0/sexplib0.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/base/shadow_stdlib/shadow_stdlib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/base/base.cmxa -I /home/k0lba/.opam/5.0.0~beta1/lib/base /home/k0lba/.opam/5.0.0~beta1/lib/jane-street-headers/jane_street_headers.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_sexp_conv/runtime-lib/ppx_sexp_conv_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_compare/runtime-lib/ppx_compare_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_enumerate/runtime-lib/ppx_enumerate_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_hash/runtime-lib/ppx_hash_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/time_now/time_now.cmxa -I /home/k0lba/.opam/5.0.0~beta1/lib/time_now /home/k0lba/.opam/5.0.0~beta1/lib/ppx_inline_test/runtime-lib/ppx_inline_test_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_here/runtime-lib/ppx_here_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/common/expect_test_common.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/config_types/expect_test_config_types.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/collector/expect_test_collector.cmxa -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/collector /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/config/expect_test_config.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_assert/runtime-lib/ppx_assert_lib.cmxa lib/unicanren.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/lockfree/lockfree.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/domainslib/domainslib.cmxa test/.u.eobjs/native/dune__exe__U.cmx)
-$ (cd _build/.sandbox/07b6294c9eafb316c27fca3717a4c460/default/test && /usr/bin/sh /tmp/dune_cram_e7c080_.test/main.sh)
-$ /usr/bin/git --no-pager diff --no-index --color=always -u _build/.sandbox/07b6294c9eafb316c27fca3717a4c460/default/test/run.t _build/.sandbox/07b6294c9eafb316c27fca3717a4c460/default/test/run.t.corrected
-> diff --git a/_build/.sandbox/07b6294c9eafb316c27fca3717a4c460/default/test/run.t b/_build/.sandbox/07b6294c9eafb316c27fca3717a4c460/default/test/run.t.corrected
-> index b3563ab..4e855c4 100644
-> --- a/_build/.sandbox/07b6294c9eafb316c27fca3717a4c460/default/test/run.t
-> +++ b/_build/.sandbox/07b6294c9eafb316c27fca3717a4c460/default/test/run.t.corrected
-> @@ -1,2 +1,3 @@
+$ (cd _build/.sandbox/2fb92b97a4993271977e4a5788b957f7/default && .ppx/bfcab61e6a21ecf6d2f80029fc1ef484/ppx.exe --cookie 'inline_tests="disabled"' -o test/u.pp.ml --impl test/u.ml -corrected-suffix .ppx-corrected -diff-cmd - -dump-ast)
+$ (cd _build/default && /home/k0lba/.opam/5.0.0~beta1/bin/ocamlopt.opt -w -40 -g -I test/.u.eobjs/byte -I test/.u.eobjs/native -I /home/k0lba/.opam/5.0.0~beta1/lib/base -I /home/k0lba/.opam/5.0.0~beta1/lib/base/base_internalhash_types -I /home/k0lba/.opam/5.0.0~beta1/lib/base/caml -I /home/k0lba/.opam/5.0.0~beta1/lib/base/shadow_stdlib -I /home/k0lba/.opam/5.0.0~beta1/lib/domainslib -I /home/k0lba/.opam/5.0.0~beta1/lib/jane-street-headers -I /home/k0lba/.opam/5.0.0~beta1/lib/lockfree -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_assert/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_compare/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_enumerate/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/collector -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/common -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/config -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/config_types -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_hash/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_here/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_inline_test/config -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_inline_test/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_sexp_conv/runtime-lib -I /home/k0lba/.opam/5.0.0~beta1/lib/sexplib0 -I /home/k0lba/.opam/5.0.0~beta1/lib/time_now -I lib/.unicanren.objs/byte -I lib/.unicanren.objs/native -intf-suffix .ml -no-alias-deps -o test/.u.eobjs/native/dune__exe__U.cmx -c -impl test/u.pp.ml)
+$ (cd _build/default && /home/k0lba/.opam/5.0.0~beta1/bin/ocamlopt.opt -w -40 -g -o test/u.exe /home/k0lba/.opam/5.0.0~beta1/lib/ppx_inline_test/config/inline_test_config.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/base/base_internalhash_types/base_internalhash_types.cmxa -I /home/k0lba/.opam/5.0.0~beta1/lib/base/base_internalhash_types /home/k0lba/.opam/5.0.0~beta1/lib/base/caml/caml.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/sexplib0/sexplib0.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/base/shadow_stdlib/shadow_stdlib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/base/base.cmxa -I /home/k0lba/.opam/5.0.0~beta1/lib/base /home/k0lba/.opam/5.0.0~beta1/lib/jane-street-headers/jane_street_headers.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_sexp_conv/runtime-lib/ppx_sexp_conv_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_compare/runtime-lib/ppx_compare_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_enumerate/runtime-lib/ppx_enumerate_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_hash/runtime-lib/ppx_hash_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/time_now/time_now.cmxa -I /home/k0lba/.opam/5.0.0~beta1/lib/time_now /home/k0lba/.opam/5.0.0~beta1/lib/ppx_inline_test/runtime-lib/ppx_inline_test_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_here/runtime-lib/ppx_here_lib.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/common/expect_test_common.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/config_types/expect_test_config_types.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/collector/expect_test_collector.cmxa -I /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/collector /home/k0lba/.opam/5.0.0~beta1/lib/ppx_expect/config/expect_test_config.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/ppx_assert/runtime-lib/ppx_assert_lib.cmxa lib/unicanren.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/lockfree/lockfree.cmxa /home/k0lba/.opam/5.0.0~beta1/lib/domainslib/domainslib.cmxa test/.u.eobjs/native/dune__exe__U.cmx)
+$ (cd _build/.sandbox/c8c658a41f6f027476e86636cf78c49d/default/test && /usr/bin/sh /tmp/dune_cram_1990f9_.test/main.sh)
+$ /usr/bin/git --no-pager diff --no-index --color=always -u _build/.sandbox/c8c658a41f6f027476e86636cf78c49d/default/test/run.t _build/.sandbox/c8c658a41f6f027476e86636cf78c49d/default/test/run.t.corrected
+> diff --git a/_build/.sandbox/c8c658a41f6f027476e86636cf78c49d/default/test/run.t b/_build/.sandbox/c8c658a41f6f027476e86636cf78c49d/default/test/run.t.corrected
+> index b3563ab..b30ff08 100644
+> --- a/_build/.sandbox/c8c658a41f6f027476e86636cf78c49d/default/test/run.t
+> +++ b/_build/.sandbox/c8c658a41f6f027476e86636cf78c49d/default/test/run.t.corrected
+> @@ -1,2 +1,5 @@
 >    $ ./u.exe
 > -  Плавленый сырок
 > +  _.11 -> 'u
 > +  _.12 -> 'v
+> +  Killed
+> +  [137]
 [1]
