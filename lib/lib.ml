@@ -158,6 +158,7 @@ module State = struct
   let add_var_logic idx t st = { st with lvars = Subst.add idx t st.lvars }
   let ( ->> ) = add_var_logic
   let add_rel name args g st = { st with rels = VarsMap.add name (name, args, g) st.rels }
+  let add_rel1 ((name, _, _) as rel) st = { st with rels = VarsMap.add name rel st.rels }
 end
 
 type st = State.t
