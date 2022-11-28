@@ -19,6 +19,12 @@ module Term = struct
   ;;
 end
 
+let rec makerev f i acc =
+  if (i = 0) then acc else makerev f (i-1) (f acc) 
+;;
+
+let funct x = Term.Cons (Symbol "x", x)
+
 open Term
 
 type goal =

@@ -52,8 +52,7 @@ let paraltest =
              Conj[Task.await pool a;Task.await pool b]) ))
       State.empty)
 ;;
-<<<<<<< HEAD
-=======
+
 
 let caro a l = Fresh ("d", Unify (Cons (a, Var "d"), l))
 
@@ -66,7 +65,7 @@ let res1 =
              (Var "a")
              (Cons (Symbol "gu", Cons (Symbol "hu", Cons (Symbol "su", Symbol "du")))))))
     State.empty
-;; *)
+;; 
 
 (* let prin1 =
   res1
@@ -118,7 +117,6 @@ let prin1 =
   |> Stream.take ~n:(-1)
   |> List.iter (fun _st -> Format.printf "%a" (Subst.pp Value.pp) _st)
 ;;
->>>>>>> 46f9e82 (troubles with noparallel)
 let g = makerev funct 700  Nil
 let failwithf fmt = Format.kasprintf failwith fmt
 
