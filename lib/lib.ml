@@ -152,7 +152,6 @@ module State = struct
   let add_var_logic idx t st = { st with lvars = Subst.add idx t st.lvars }
   let ( ->> ) = add_var_logic
   let add_rel name args g st = { st with rels = VarsMap.add name (name, args, g) st.rels }
-  let add_rel1 ((name, _, _) as rel) st = { st with rels = VarsMap.add name rel st.rels }
 end
 
 type st = State.t
@@ -183,8 +182,6 @@ module StateMonad : sig
   module Syntax : sig
     val ( let* ) : ('a, 'b) t -> ('b -> ('a, 'c) t) -> ('a, 'c) t
   end
-
-  [@@@ocaml.warning "-32"]
 
   val run : ('st, 'r) t -> 'st -> ('r, error) Result.t
   val read : ('a, 'a) t
@@ -302,43 +299,41 @@ type 'a state = (st, 'a) StateMonad.t
 
 module Stream = struct
   type 'a t =
-    | Nil (** Empty stream *)
-    | Cons of 'a * 'a t lazy_t (** An answer and lazy calculation of rest of answers *)
-  (*
-    | Thunk of 'a t lazy_t (** Deferred evaluation of answers *)
-*)
+    | Nil
+    | Cons of 'a * 'a t Lazy.t
+    | Thunk of 'a t Lazy.t
 
   let rec pp ppf = function
     | Nil -> fprintf ppf "Nil"
     | Cons (_, (lazy tl)) -> fprintf ppf "(Cons (_, %a))" pp tl
+    | Thunk _ -> fprintf ppf "(Thunk _)"
   ;;
 
   let nil = Nil
   let return x = Cons (x, lazy Nil)
+  let cons x xs = Cons (x, xs)
+  let from_fun zz = Thunk (lazy (zz ()))
 
-  (* let cons x xs = Cons (x, xs) *)
-  (* let from_fun zz = Thunk (lazy (zz ())) *)
-
-  (*   let force = function
+  let force = function
     | Thunk (lazy zz) -> zz
     | xs -> xs
   ;;
- *)
-  let rec mplus : 'a t -> 'a t -> 'a t =
+
+  let rec mplus : 'a. 'a t -> 'a t -> 'a t =
    fun x y ->
     (* printf "Stream.mplus of `%a` and `%a`\n%!" pp x pp y; *)
     match x, y with
     | Nil, _ -> y
-    (* | Thunk l, r -> mplus r (Lazy.force l) *)
+    | Thunk l, r -> mplus r (Lazy.force l)
     | Cons (x, l), r -> Cons (x, lazy (mplus r (Lazy.force l)))
  ;;
 
-  (*   let rec bind s f =
+  let rec bind s f =
     match s with
     | Nil -> Nil
     | Cons (x, s) -> mplus (f x) (from_fun (fun () -> bind (Lazy.force s) f))
     | Thunk zz -> from_fun (fun () -> bind (Lazy.force zz) f)
-  ;; *)
+  ;;
 
   let from_funm : (unit -> 'a t state) -> 'a t state =
    fun f ->
@@ -354,15 +349,15 @@ module Stream = struct
     let open StateMonad.Syntax in
     let* init = s in
     match init with
-    (* | Thunk zz ->
-      (* Bullshit ? *)
-      from_funm (fun () -> bindm (return (Lazy.force zz)) f) *)
     | Nil -> return Nil
     | Cons (x, s) ->
       let* l = f x in
       (* Bullshit ? *)
       let* r = from_funm (fun () -> bindm (return @@ Lazy.force s) f) in
       return @@ mplus l r
+    | Thunk zz ->
+      (* Bullshit ? *)
+      from_funm (fun () -> bindm (return (Lazy.force zz)) f)
  ;;
 
   let take ?(n = -1) =
@@ -370,7 +365,7 @@ module Stream = struct
       | Nil -> []
       | _ when n = 0 -> []
       | Cons (s, (lazy tl)) -> s :: helper (n - 1) tl
-      (* | Thunk (lazy zz) -> helper n zz *)
+      | Thunk (lazy zz) -> helper n zz
     in
     helper n
   ;;
@@ -390,7 +385,7 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
   let rec eval root : (st, subst Stream.t) StateMonad.t =
     match root with
     | TraceSVars xs ->
-      let* { svars; lvars = subst; _ } = read in
+      let* { svars; lvars = subst } = read in
       if trace_svars
       then
         Format.printf
@@ -407,7 +402,7 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
     | Unify (l, r) ->
       let* l = eval_term l in
       let* r = eval_term r in
-      let* ({ State.lvars; _ } as st) = read in
+      let* ({ State.lvars } as st) = read in
       let ppw = Value.ppw lvars in
       (match unify lvars l r with
        | None ->

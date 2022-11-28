@@ -1,0 +1,70 @@
+Starting program: /home/k0lba/Documents/unicanren/_build/default/test/u.exe 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+[New Thread 0x7fffe7a4a640 (LWP 95358)]
+[New Thread 0x7fffe6a48640 (LWP 95360)]
+[New Thread 0x7fffe7249640 (LWP 95359)]
+[New Thread 0x7fffe6247640 (LWP 95361)]
+[New Thread 0x7fffe5183640 (LWP 95363)]
+[New Thread 0x7fffe5984640 (LWP 95362)]
+[New Thread 0x7fffe48c0640 (LWP 95364)]
+[Thread 0x7fffe48c0640 (LWP 95364) exited]
+[Thread 0x7fffe5183640 (LWP 95363) exited]
+[Thread 0x7fffe5984640 (LWP 95362) exited]
+[Thread 0x7fffe6247640 (LWP 95361) exited]
+[Thread 0x7fffe6a48640 (LWP 95360) exited]
+[Thread 0x7fffe7a4a640 (LWP 95358) exited]
+[Thread 0x7ffff7c96740 (LWP 95355) exited]
+[Thread 0x7fffe7249640 (LWP 95359) exited]
+[New process 95355]
+[Inferior 1 (process 95355) exited normally]
+Warning: 'set logging off', an alias for the command 'set logging enabled', is deprecated.
+Use 'set logging enabled off'.
+
+Starting program: /home/k0lba/Documents/unicanren/_build/default/test/u.exe 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+[New Thread 0x7fffe7a4a640 (LWP 96206)]
+[New Thread 0x7fffe7249640 (LWP 96207)]
+[New Thread 0x7fffe6a48640 (LWP 96208)]
+[New Thread 0x7fffe6247640 (LWP 96209)]
+[New Thread 0x7fffe5984640 (LWP 96210)]
+[New Thread 0x7fffe5183640 (LWP 96211)]
+[New Thread 0x7fffe48c0640 (LWP 96212)]
+[Thread 0x7fffe48c0640 (LWP 96212) exited]
+[Thread 0x7fffe5183640 (LWP 96211) exited]
+[Thread 0x7fffe5984640 (LWP 96210) exited]
+[Thread 0x7fffe6247640 (LWP 96209) exited]
+[Thread 0x7fffe7249640 (LWP 96207) exited]
+[Thread 0x7fffe7a4a640 (LWP 96206) exited]
+[Thread 0x7ffff7c96740 (LWP 96203) exited]
+[Thread 0x7fffe6a48640 (LWP 96208) exited]
+[New process 96203]
+[Inferior 1 (process 96203) exited normally]
+Warning: 'set logging off', an alias for the command 'set logging enabled', is deprecated.
+Use 'set logging enabled off'.
+
+Undefined command: "".  Try "help".
+Starting program: /home/k0lba/Documents/unicanren/_build/default/test/u.exe 
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+[New Thread 0x7fffe7a4a640 (LWP 96986)]
+[New Thread 0x7fffe6a48640 (LWP 96988)]
+[New Thread 0x7fffe7249640 (LWP 96987)]
+[New Thread 0x7fffe6247640 (LWP 96989)]
+[New Thread 0x7fffe5183640 (LWP 96991)]
+[New Thread 0x7fffe5984640 (LWP 96990)]
+[New Thread 0x7fffe48c0640 (LWP 96992)]
+[Thread 0x7fffe48c0640 (LWP 96992) exited]
+[Thread 0x7fffe5984640 (LWP 96990) exited]
+[Thread 0x7fffe6247640 (LWP 96989) exited]
+[Thread 0x7fffe6a48640 (LWP 96988) exited]
+[Thread 0x7fffe7249640 (LWP 96987) exited]
+[Thread 0x7fffe7a4a640 (LWP 96986) exited]
+[Thread 0x7ffff7c96740 (LWP 96972) exited]
+[Thread 0x7fffe5183640 (LWP 96991) exited]
+[New process 96972]
+[Inferior 1 (process 96972) exited normally]
+Warning: 'set logging off', an alias for the command 'set logging enabled', is deprecated.
+Use 'set logging enabled off'.
+
