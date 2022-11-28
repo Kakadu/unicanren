@@ -19,13 +19,21 @@ module Term = struct
   ;;
 end
 
+open Term
+
+<<<<<<< HEAD
+let rec makerev f i acc sym =
+  if (i = 0) then acc else makerev f (i-1) (f acc sym) sym
+;;
+
+let funct x symbol = Term.Cons (Symbol symbol, x)
+=======
 let rec makerev f i acc =
   if (i = 0) then acc else makerev f (i-1) (f acc) 
 ;;
 
 let funct x = Term.Cons (Symbol "x", x)
-
-open Term
+>>>>>>> aad1aac (troubles with noparallel)
 
 type goal =
   | Unify of Term.t * Term.t

@@ -119,10 +119,3 @@ let prin1 =
 ;;
 let g = makerev funct 700  Nil
 let failwithf fmt = Format.kasprintf failwith fmt
-
-let prin1 =
-  res2
-  |> Result.get_ok
-  |> Stream.take ~n:(-1)
-  |> List.iter (fun _st -> Format.printf "%a" (Subst.pp Value.pp) _st)
-;;
