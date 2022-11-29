@@ -21,25 +21,14 @@ end
 
 open Term
 
-<<<<<<< HEAD
-let rec makerev f i acc sym =
-  if (i = 0) then acc else makerev f (i-1) (f acc sym) sym
-;;
-
+let rec makerev f i acc sym = if i = 0 then acc else makerev f (i - 1) (f acc sym) sym
 let funct x symbol = Term.Cons (Symbol symbol, x)
-=======
-let rec makerev f i acc =
-  if (i = 0) then acc else makerev f (i-1) (f acc) 
-;;
-
-let funct x = Term.Cons (Symbol "x", x)
->>>>>>> aad1aac (troubles with noparallel)
 
 type goal =
   | Unify of Term.t * Term.t
   | Conj of goal list
   | Conde of goal list (* TODO: make non-empty list here *)
-  (* | CondeOf2 of goal * goal *)
+  | CondeOf2 of goal * goal
   | Fresh of string * goal
   | Call of string * Term.t list
   | TraceSVars of string list
@@ -54,7 +43,7 @@ let pp_goal =
     | Conde [] | Conj [] -> assert false
     | Conde xs ->
       fprintf ppf "(conde [ %a ])" (pp_print_list ~pp_sep:pp_print_space helper) xs
-    (* | CondeOf2 (x,y) -> fprintf ppf "(fresh (%a) %a)" helper x helper y *)
+    | CondeOf2 (x,y) -> fprintf ppf "(fresh (%a) %a)" helper x helper y
     | Conj xs -> pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " && ") helper ppf xs
     | Fresh (s, g) -> fprintf ppf "(fresh (%s) %a)" s helper g
     | Call (name, args) ->
@@ -287,7 +276,7 @@ end = struct
 
     let rec foldlm f acc = function
       | [] -> acc
-      | x :: xs -> foldlm f (acc >>= (fun acc -> f acc x)) xs
+      | x :: xs -> foldlm f (acc >>= fun acc -> f acc x) xs
     ;;
 
     let foldl2m :
@@ -428,7 +417,7 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
          let* () = put { st with lvars = subst2 } in
          return (Stream.return subst2))
     | Conde [] -> assert false
-    (* | CondeOf2 (x,y) -> eval x  *)
+    | CondeOf2 (x,y) -> eval x 
     | Conde (x :: xs) ->
       let* st = read in
       List.foldlm
