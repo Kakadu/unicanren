@@ -156,6 +156,20 @@ let next_logic_var =
     !last
 ;;
 
+let first_logic =
+  let last = ref 10 in
+  fun () ->
+    incr last;
+    !last
+;;
+
+let second_logic =
+  let last = ref 10 in
+  fun () ->
+    incr last;
+    !last
+;;
+
 let () =
   let goal = Call ("reverso", [ g; Var "xs" ]) in
   let goal2 = Call ("reverso", [ h; Var "xz" ]) in
@@ -174,12 +188,12 @@ let () =
       |> add_rel "reverso" [ "xy"; "yx" ] reverso_body)
   in
   let wrap g =
-    let s = StateMonad.run (eval next_logic_var g) state0 in
+    let s = StateMonad.run (eval first_logic g) state0 in
     (* let _ = Result.map (Stream.take ~n:1) s in ~trace_uni:true*)
     s
   in
   let wrap1 g =
-    let s = StateMonad.run (eval next_logic_var g) state1 in
+    let s = StateMonad.run (eval second_logic g) state1 in
     s
   in
   let pool = Task.setup_pool ~num_domains:2 () in
