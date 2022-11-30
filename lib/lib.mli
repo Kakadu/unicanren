@@ -115,9 +115,9 @@ module Term : sig
   
   val funct : Term.t -> Format.tag -> Term.t
 
-  val makerev : ('a -> 'a) -> int -> 'a -> 'a
+  val makerev : ('a -> 'b -> 'a) -> int -> 'a -> 'b -> 'a
   
-  val funct : Term.t -> Term.t
+  val funct : Term.t -> Format.tag-> Term.t
 
   
   type error =

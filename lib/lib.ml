@@ -43,7 +43,7 @@ let pp_goal =
     | Conde [] | Conj [] -> assert false
     | Conde xs ->
       fprintf ppf "(conde [ %a ])" (pp_print_list ~pp_sep:pp_print_space helper) xs
-    | CondeOf2 (x,y) -> fprintf ppf "(fresh (%a) %a)" helper x helper y
+    | CondeOf2 (x, y) -> fprintf ppf "(fresh (%a) %a)" helper x helper y
     | Conj xs -> pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " && ") helper ppf xs
     | Fresh (s, g) -> fprintf ppf "(fresh (%s) %a)" s helper g
     | Call (name, args) ->
@@ -327,7 +327,7 @@ module Stream = struct
    fun x y ->
     (* printf "Stream.mplus of `%a` and `%a`\n%!" pp x pp y; *)
     match x, y with
-    | Nil, _ -> y
+    | Nil, _ ->  y
     | Thunk l, r -> mplus r (Lazy.force l)
     | Cons (x, l), r -> Cons (x, lazy (mplus r (Lazy.force l)))
  ;;
@@ -417,7 +417,7 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
          let* () = put { st with lvars = subst2 } in
          return (Stream.return subst2))
     | Conde [] -> assert false
-    | CondeOf2 (x,y) -> eval x 
+    | CondeOf2 (x, y) -> eval x
     | Conde (x :: xs) ->
       let* st = read in
       List.foldlm

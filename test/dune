@@ -1,6 +1,6 @@
 (executable
  (name u)
- (libraries unicanren domainslib)
+ (libraries unicanren domainslib core_unix)
  (preprocess
   (pps ppx_inline_test)))
   
