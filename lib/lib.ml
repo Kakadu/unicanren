@@ -382,7 +382,7 @@ let next_logic_var =
     !last
 ;;
 
-let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
+let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) next_logic_var1=
   let open State in
   let open StateMonad in
   let open StateMonad.Syntax in
@@ -434,7 +434,7 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
         put { st with lvars = subst } >>= fun () -> eval (Conj xs))
     | Fresh (name, rhs) ->
       let* st = read in
-      let term = Value.var (next_logic_var ()) in
+      let term = Value.var (next_logic_var1 ()) in
       let svars = VarsMap.add name term st.State.svars in
       let* () = put { st with svars } in
       Stream.from_funm (fun () -> eval rhs)

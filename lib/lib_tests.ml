@@ -1,14 +1,23 @@
 open Lib
 open Format
 
+
+let next_logic_var =
+  let last = ref 10 in
+  fun () ->
+    incr last;
+    !last
+;;
+
+
 let%test _ =
-  StateMonad.run (eval (Unify (Var "x", Var "y"))) State.empty
+  StateMonad.run (eval next_logic_var (Unify (Var "x", Var "y"))) State.empty
   = Result.error (`UnboundSyntaxVariable "x")
 ;;
 
 let%expect_test _ =
   let goal = Unify (Symbol "x", Symbol "y") in
-  StateMonad.run (eval goal) State.empty
+  StateMonad.run (eval next_logic_var goal) State.empty
   |> Result.get_ok
   |> Stream.take ~n:(-1)
   |> List.iter (fun _st -> Format.printf "AAA\n%!");
@@ -16,7 +25,7 @@ let%expect_test _ =
 ;;
 
 let run_optimistically g st =
-  match StateMonad.run (eval g) st with
+  match StateMonad.run (eval next_logic_var g) st with
   | Result.Ok r -> Stream.take ~n:(-1) r
   | Result.Error e -> failwiths "Error: %a" pp_error e
 ;;

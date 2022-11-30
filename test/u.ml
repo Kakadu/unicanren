@@ -4,18 +4,18 @@ open Unicanren.Lib
 open Domainslib
 open Format
 
-let res =
+(* let res =
   StateMonad.run
     (eval
        (fresh
           [ "x" ]
           (Conde [ Unify (Var "x", Symbol "u"); Unify (Var "x", Symbol "v") ])))
     State.empty
-;;
+;; *)
 
 let caro a l = Fresh ("d", Unify (Cons (a, Var "d"), l))
 
-let res1 =
+(* let res1 =
   StateMonad.run
     (eval
        (fresh
@@ -24,7 +24,7 @@ let res1 =
              (Var "a")
              (Cons (Symbol "gu", Cons (Symbol "hu", Cons (Symbol "su", Symbol "du")))))))
     State.empty
-;;
+;; *)
 
 (* let prin1 =
   res1
@@ -33,15 +33,9 @@ let res1 =
   |> List.iter (fun _st -> Format.printf "%a" (Value.ppw _st) (Subst.find 12 _st))
 ;; *)
 
-let pool = Task.setup_pool ~num_domains:3 ()
+(* let pool = Task.setup_pool ~num_domains:3 () *)
 
-let summ acc y =
-  let open StateMonad in
-  (* let open StateMonad.Syntax in *)
-  return (Stream.mplus acc) <*> eval y
-;;
-
-let paraltest =
+(* let paraltest =
   Task.run pool (fun () ->
     StateMonad.run
       (eval
@@ -51,11 +45,11 @@ let paraltest =
              let b = Task.async pool (fun _ -> Unify (Var "x", Symbol "v")) in
              Conj [ Task.await pool a; Task.await pool b ])))
       State.empty)
-;;
+;; *)
 
 let caro a l = Fresh ("d", Unify (Cons (a, Var "d"), l))
 
-let res1 =
+(* let res1 =
   StateMonad.run
     (eval
        (fresh
@@ -64,7 +58,7 @@ let res1 =
              (Var "a")
              (Cons (Symbol "gu", Cons (Symbol "hu", Cons (Symbol "su", Symbol "du")))))))
     State.empty
-;;
+;; *)
 
 (* let prin1 =
   res1
@@ -99,7 +93,7 @@ let summ l r =
     StateMonad.run (eval (Conj[Task.await pool a; Task.await pool b])) State.empty)  (*summ (Task.await pool a*)
 ;; *)
 
-let res2 =
+(* let res2 =
   Task.run pool (fun () ->
     let a =
       Task.async pool (fun _ -> eval (fresh [ "x" ] (Unify (Var "x", Symbol "u"))))
@@ -108,7 +102,7 @@ let res2 =
       Task.async pool (fun _ -> eval (fresh [ "x" ] (Unify (Var "x", Symbol "v"))))
     in
     StateMonad.run (summ (Task.await pool a) (Task.await pool b)) State.empty)
-;;
+;; *)
 
 (* let prin1 =
   res2
@@ -117,8 +111,8 @@ let res2 =
   |> List.iter (fun _st -> Format.printf "%a" (Subst.pp Value.pp) _st)
 ;; *)
 
-let g = makerev funct 70 Nil "y"
-let h = makerev funct 70 Nil "x"
+let g = makerev funct 700 Nil "y"
+let h = makerev funct 700 Nil "x"
 let failwithf fmt = Format.kasprintf failwith fmt
 
 let appendo_body =
@@ -155,10 +149,16 @@ let reverso_body =
     ]
 ;;
 
+let next_logic_var =
+  let last = ref 10 in
+  fun () ->
+    incr last;
+    !last
+;;
 
 let () =
   let goal = Call ("reverso", [ g; Var "xs" ]) in
-  let goal2 = Call ("reverso", [ h; Var "xs" ]) in
+  let goal2 = Call ("reverso", [ h; Var "xz" ]) in
   let state0 =
     State.(
       empty
@@ -166,15 +166,26 @@ let () =
       |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body
       |> add_rel "reverso" [ "xy"; "yx" ] reverso_body)
   in
+  let state1 =
+    State.(
+      empty
+      |> "xz" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body
+      |> add_rel "reverso" [ "xy"; "yx" ] reverso_body)
+  in
   let wrap g =
-    let s = StateMonad.run (eval  g) state0 in
+    let s = StateMonad.run (eval next_logic_var g) state0 in
     (* let _ = Result.map (Stream.take ~n:1) s in ~trace_uni:true*)
     s
   in
-  let pool = Task.setup_pool ~num_domains:12 () in
+  let wrap1 g =
+    let s = StateMonad.run (eval next_logic_var g) state1 in
+    s
+  in
+  let pool = Task.setup_pool ~num_domains:2 () in
   let d = Task.async pool (fun _ -> wrap goal) in
-  let d1 = Task.async pool (fun _ -> wrap goal2) in
-  match Task.run pool (fun () ->  Task.await pool d,Task.await pool d1) with
+  let d1 = Task.async pool (fun _ -> wrap1 goal2) in
+  match Task.run pool (fun () -> Task.await pool d, Task.await pool d1) with
   | Result.Ok a, Result.Ok b ->
     (a
     |> Stream.take ~n:(-1)

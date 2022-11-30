@@ -179,8 +179,6 @@ module Term : sig
     val take : ?n:int -> 'a t -> 'a list
   end
   val eval
-    :  ?trace_svars:bool
-    -> ?trace_uni:bool
-    -> ?trace_calls:bool
-    -> goal
-    -> subst Stream.t state
+    : ?trace_svars:bool ->
+      ?trace_uni:bool ->
+      ?trace_calls:bool -> (unit -> int) -> goal -> subst Stream.t state
