@@ -375,9 +375,15 @@ module Stream = struct
   ;;
 end
 
+let next_logic_var =
+  let last = ref 10 in
+  fun () ->
+    incr last;
+    !last
+;;
 
 
-let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) next_logic_var1=
+let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) ?(next_logic_var1 = next_logic_var)=
   let open State in
   let open StateMonad in
   let open StateMonad.Syntax in

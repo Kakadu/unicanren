@@ -1,4 +1,5 @@
 open Unicanren.Lib
+open Stdlib
 
 (* open Printf *)
 open Domainslib
@@ -48,7 +49,8 @@ let caro a l = Fresh ("d", Unify (Cons (a, Var "d"), l))
 ;; *)
 
 let caro a l = Fresh ("d", Unify (Cons (a, Var "d"), l))
-
+let cdro p d = Fresh ("a", Unify (Cons (Var "a", d), p))
+let conso a d p = Conde [ caro p a; cdro p d ]
 (* let res1 =
   StateMonad.run
     (eval
@@ -111,8 +113,8 @@ let summ l r =
   |> List.iter (fun _st -> Format.printf "%a" (Subst.pp Value.pp) _st)
 ;; *)
 
-let g = makerev funct 700 Nil "y"
-let h = makerev funct 700 Nil "x"
+let g = makerev funct 10 Nil "y"
+let h = makerev funct 10 Nil "x"
 let failwithf fmt = Format.kasprintf failwith fmt
 
 let appendo_body =
@@ -149,13 +151,6 @@ let reverso_body =
     ]
 ;;
 
-let next_logic_var =
-  let last = ref 10 in
-  fun () ->
-    incr last;
-    !last
-;;
-
 let first_logic =
   let last = ref 10 in
   fun () ->
@@ -170,7 +165,7 @@ let second_logic =
     !last
 ;;
 
-let () =
+(* let () =
   let goal = Call ("reverso", [ g; Var "xs" ]) in
   let goal2 = Call ("reverso", [ h; Var "xz" ]) in
   let state0 =
@@ -212,38 +207,147 @@ let () =
   | Error _, Error _ ->
     (* Format.printf "%a\n%a\n%!" pp_error s1 pp_error s2; *)
     failwithf "%s %d" __FILE__ __LINE__
-;;
-
-(* let par =
-  Task.run pool (fun () ->
-    let goal = Call ("reverso", [ g; Var "xs" ]) in
-    let state0 =
-      State.(
-        empty
-        |> "xs" --> Var 10
-        |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body
-        |> add_rel "reverso" [ "xy"; "yx" ] reverso_body)
-    in
-    let s = StateMonad.run (eval goal) state0 in
-    s
-    |> Result.get_ok
-    |> Stream.take ~n:(-1)
-    |> List.iter (fun st -> printf "%a\n" Value.pp (Value.walk st (Value.var 10))))
-;;
-
-let par1 =
-  Task.run pool (fun () ->
-    let goal = Call ("reverso", [ h; Var "xs" ]) in
-    let state0 =
-      State.(
-        empty
-        |> "xs" --> Var 10
-        |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body
-        |> add_rel "reverso" [ "xy"; "yx" ] reverso_body)
-    in
-    let s = StateMonad.run (eval goal) state0 in
-    s
-    |> Result.get_ok
-    |> Stream.take ~n:(-1)
-    |> List.iter (fun st -> printf "%a\n" Value.pp (Value.walk st (Value.var 10))))
 ;; *)
+
+(* let _ =
+  let goal = Call ("appendo", [ Var "xs"; Var "ys"; g ]) in
+  let goal1 = Call ("appendo", [ Var "xs"; Var "ys"; h ]) in
+  let env =
+    State.(
+      empty
+      |> "xs" --> Var 9
+      |> "ys" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  in
+  let env1 =
+    State.(
+      empty
+      |> "xs" --> Var 9
+      |> "ys" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  in
+  let pool = Task.setup_pool ~num_domains:2 () in
+  let a =
+    Task.async pool (fun _ -> StateMonad.run (eval ~next_logic_var1:first_logic goal) env)
+  in
+  let b =
+    Task.async pool (fun _ ->
+      StateMonad.run (eval ~next_logic_var1:second_logic goal1) env1)
+  in
+  (match Task.run pool (fun () -> Task.await pool a, Task.await pool b) with
+   | Result.Ok a, Result.Ok b -> Stream.mplus a b
+   | Ok _, Error _ | Error _, Ok _ | Error _, Error _ ->
+     failwithf "%s %d" __FILE__ __LINE__)
+  |> Stream.take ~n:(-1)
+  |> (fun xs ->
+       Format.printf "Got %d answers\n%!" (List.length xs);
+       xs) *)
+(* |> List.iter (fun st -> printf "%a\n" Value.pp (Value.walk st (Value.var 10))) *)
+
+(* let _ =
+  let goal = (Fresh ("x", Unify (Cons (Var "x", Nil), Nil))) in
+  let state = State.empty in
+  (StateMonad.run (eval ~trace_uni:true goal) state)
+  |> Result.get_ok
+  |> Stream.take ~n:(-1) 
+  |> List.iter (fun st -> printf "%a" (Subst.pp Value.pp) st)
+;; *)
+
+let _ =
+  let goal = Call ("appendo", [ Var "xs"; Var "ys"; g ]) in
+  let goal1 = Call ("appendo", [ Var "xs"; Var "ys"; h ]) in
+  let env =
+    State.(
+      empty
+      |> "xs" --> Var 9
+      |> "ys" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  in
+  let env1 =
+    State.(
+      empty
+      |> "xs" --> Var 9
+      |> "ys" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  in
+  let pool = Task.setup_pool ~num_domains:2 () in
+  let c = Chan.make_bounded 4 in
+  let a =
+    Domain.spawn (fun _ -> Chan.send c (StateMonad.run (eval goal) env))
+  in
+  let b =
+    Domain.spawn (fun _ ->
+      Chan.send c (StateMonad.run (eval goal1) env1))
+  in
+  let _ = Domain.join a, Domain.join b in 
+  let res = Chan.recv c, Chan.recv c in
+  (match res with
+   | Result.Ok a, Result.Ok b -> Stream.mplus a b
+   | Ok _, Error _ | Error _, Ok _ | Error _, Error _ ->
+     failwithf "%s %d" __FILE__ __LINE__)
+  |> Stream.take ~n:(-1)
+  |> (fun xs ->
+       Format.printf "Got %d answers\n%!" (List.length xs);
+       xs)
+let rec fib n = if n <= 2 then 1 else fib (n - 1) + fib (n - 2)
+
+(* let c = Chan.make_bounded 1 *)
+(* let pool = Task.setup_pool ~num_domains:2 () *)
+
+(* let dev a =
+  let b = a * a in
+  Chan.send c (a * 82708270987);
+  let d = Chan.recv c in
+  print_int d;
+  b * 970987098790
+;; *)
+
+module C = Domainslib.Chan
+
+let num_domains =
+  try int_of_string Sys.argv.(1) with
+  | _ -> 4
+;;
+
+let n =
+  try int_of_string Sys.argv.(2) with
+  | _ -> 22
+;;
+
+type 'a message =
+  | Task of 'a
+  | Quit
+
+let c = C.make_unbounded ()
+
+let create_work tasks =
+  Array.iter (fun t -> C.send c (Task t)) tasks;
+  for _ = 1 to num_domains do
+    C.send c Quit
+  done
+;;
+
+let rec worker f () =
+  match C.recv c with
+  | Task a ->
+    f a;
+    worker f ()
+  | Quit -> ()
+;;
+
+(* let _ =
+  let tasks = Array.init n (fun i -> i) in
+  create_work tasks;
+  let factorial n =
+    if n <= 2 then 1 else fib (n - 1) + fib (n - 2)
+  in
+  let results = Array.make n 0 in
+  let update r i = r.(i) <- factorial i in
+  let domains =
+    Array.init (num_domains -1) (fun _ -> Domain.spawn (worker (update results)))
+  in
+  (* worker (update results) (); *)
+  Array.iter Domain.join domains;
+  Array.iter (Printf.printf "%d ") results
+;; *)
+

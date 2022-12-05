@@ -181,4 +181,5 @@ module Term : sig
   val eval
     : ?trace_svars:bool ->
       ?trace_uni:bool ->
-      ?trace_calls:bool -> (unit -> int) -> goal -> subst Stream.t state
+      ?trace_calls:bool ->
+      ?next_logic_var1:(unit -> int) -> goal -> subst Stream.t state
