@@ -167,11 +167,12 @@ module Term : sig
   type 'a state = (st, 'a) StateMonad.t
   (** A stream of answers of calculation *)
   module Stream : sig
-    type 'a t
-    (* type 'a t = Nil | Cons of 'a * 'a t lazy_t *)
+    (* type 'a t *)
+    type 'a t = Nil | Cons of 'a * 'a t lazy_t | Thunk of 'a t lazy_t
     (* val pp : formatter -> 'a t -> unit *)
     val nil : 'a t
     val return : 'a -> 'a t
+    val force : 'a t -> 'a t
     val mplus : 'a t -> 'a t -> 'a t
     val from_funm : (unit -> 'a t state) -> 'a t state
     val bindm : 'a t state -> ('a -> 'b t state) -> 'b t state

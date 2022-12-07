@@ -113,8 +113,8 @@ let summ l r =
   |> List.iter (fun _st -> Format.printf "%a" (Subst.pp Value.pp) _st)
 ;; *)
 
-let g = makerev funct 10 Nil "y"
-let h = makerev funct 10 Nil "x"
+let g = makerev funct 700 Nil "y"
+let h = makerev funct 700 Nil "x"
 let failwithf fmt = Format.kasprintf failwith fmt
 
 let appendo_body =
@@ -253,7 +253,7 @@ let second_logic =
   |> List.iter (fun st -> printf "%a" (Subst.pp Value.pp) st)
 ;; *)
 
-let _ =
+(* let _ =
   let goal = Call ("appendo", [ Var "xs"; Var "ys"; g ]) in
   let goal1 = Call ("appendo", [ Var "xs"; Var "ys"; h ]) in
   let env =
@@ -288,7 +288,7 @@ let _ =
   |> Stream.take ~n:(-1)
   |> (fun xs ->
        Format.printf "Got %d answers\n%!" (List.length xs);
-       xs)
+       xs) *)
 let rec fib n = if n <= 2 then 1 else fib (n - 1) + fib (n - 2)
 
 (* let c = Chan.make_bounded 1 *)
@@ -302,7 +302,7 @@ let rec fib n = if n <= 2 then 1 else fib (n - 1) + fib (n - 2)
   b * 970987098790
 ;; *)
 
-module C = Domainslib.Chan
+(* module C = Domainslib.Chan
 
 let num_domains =
   try int_of_string Sys.argv.(1) with
@@ -316,11 +316,11 @@ let n =
 
 type 'a message =
   | Task of 'a
-  | Quit
+  | Quit *)
 
-let c = C.make_unbounded ()
+(* let c = C.make_unbounded () *)
 
-let create_work tasks =
+(* let create_work tasks =
   Array.iter (fun t -> C.send c (Task t)) tasks;
   for _ = 1 to num_domains do
     C.send c Quit
@@ -333,7 +333,7 @@ let rec worker f () =
     f a;
     worker f ()
   | Quit -> ()
-;;
+;; *)
 
 (* let _ =
   let tasks = Array.init n (fun i -> i) in
@@ -351,3 +351,63 @@ let rec worker f () =
   Array.iter (Printf.printf "%d ") results
 ;; *)
 
+let makeEven i = i * 2
+let makeOdd i = (i * 2) + 1
+let rec repeat f i acc eo = if i = 0 then acc else repeat f (i - 1) (f acc (eo i)) eo
+let fun_for_stream x i = lazy (Stream.Cons (i, x))
+let streamList eo = Stream.Cons (eo 0, repeat fun_for_stream 50 (lazy Stream.Nil) eo)
+let c = Chan.make_unbounded ()
+
+let rec forceStream x =
+  match x with
+  | Stream.Cons (x, y) ->
+    Chan.send c x;
+    forceStream (Lazy.force y)
+  | Stream.Nil -> c
+  | _ -> assert false
+;;
+
+let pool = Task.setup_pool ~num_domains:2 ()
+
+let _ =
+  let t1 = Task.async pool (fun _ -> forceStream (streamList makeOdd)) in
+  let t2 = Task.async pool (fun _ -> forceStream (streamList makeEven)) in
+  let a = Task.run pool (fun _ -> Task.await pool t1) in
+  let b = Task.run pool (fun _ -> Task.await pool t2) in
+  (* Task.await pool t2); *)
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d  " (Chan.recv c);
+  printf "%d" (Chan.recv c)
+;;
+
+(* Stream.mplus (Chan.recv c) (Chan.recv c) |> Stream.take |> List.iter (printf "%d") *)
+(* Stream.take (Chan.recv c) |> List.iter (printf "%d") *)
