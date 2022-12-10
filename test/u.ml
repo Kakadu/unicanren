@@ -252,8 +252,33 @@ let second_logic =
   |> Stream.take ~n:(-1) 
   |> List.iter (fun st -> printf "%a" (Subst.pp Value.pp) st)
 ;; *)
+let c = Chan.make_unbounded ()
 
-(* let _ =
+(* let recv_poll = 
+  match Chan.recv_poll c with
+  | Some _ -> true
+  | None -> false *)
+
+let rec merge_Stream n=
+  (* let strpls = ref Stream.Nil in
+  while recv_poll do         
+    strpls := Stream.mplus (Stream.return (Chan.recv c)) (!strpls)
+  done;
+  (!strpls) *)
+  match Chan.recv_poll c with 
+  | Some x -> Stream.mplus (Stream.return (x)) (merge_Stream n)
+  | None -> Stream.Nil
+
+let rec force_Stream x =
+  match x with
+  | Stream.Cons (x, y) ->
+    Chan.send c x;
+    force_Stream (Lazy.force y)
+  | Stream.Nil -> c
+  | _ -> assert false
+;;
+
+let _ =
   let goal = Call ("appendo", [ Var "xs"; Var "ys"; g ]) in
   let goal1 = Call ("appendo", [ Var "xs"; Var "ys"; h ]) in
   let env =
@@ -271,24 +296,22 @@ let second_logic =
       |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
   in
   let pool = Task.setup_pool ~num_domains:2 () in
-  let c = Chan.make_bounded 4 in
   let a =
-    Domain.spawn (fun _ -> Chan.send c (StateMonad.run (eval goal) env))
+    Task.async pool (fun _ ->
+      force_Stream (StateMonad.run (eval goal) env |> Result.get_ok))
   in
   let b =
-    Domain.spawn (fun _ ->
-      Chan.send c (StateMonad.run (eval goal1) env1))
+    Task.async pool (fun _ ->
+      force_Stream (StateMonad.run (eval goal1) env1 |> Result.get_ok))
   in
-  let _ = Domain.join a, Domain.join b in 
-  let res = Chan.recv c, Chan.recv c in
-  (match res with
-   | Result.Ok a, Result.Ok b -> Stream.mplus a b
-   | Ok _, Error _ | Error _, Ok _ | Error _, Error _ ->
-     failwithf "%s %d" __FILE__ __LINE__)
+  let _ = Task.run pool (fun _ -> Task.await pool a, Task.await pool b) in
+ merge_Stream c
   |> Stream.take ~n:(-1)
-  |> (fun xs ->
-       Format.printf "Got %d answers\n%!" (List.length xs);
-       xs) *)
+  |> fun xs ->
+  Format.printf "Got %d answers\n%!" (List.length xs);
+  xs
+;;
+
 let rec fib n = if n <= 2 then 1 else fib (n - 1) + fib (n - 2)
 
 (* let c = Chan.make_bounded 1 *)
@@ -357,18 +380,8 @@ let rec repeat f i acc eo = if i = 0 then acc else repeat f (i - 1) (f acc (eo i
 let fun_for_stream x i = lazy (Stream.Cons (i, x))
 let streamList eo = Stream.Cons (eo 0, repeat fun_for_stream 50 (lazy Stream.Nil) eo)
 let c = Chan.make_unbounded ()
-
-let rec forceStream x =
-  match x with
-  | Stream.Cons (x, y) ->
-    Chan.send c x;
-    forceStream (Lazy.force y)
-  | Stream.Nil -> c
-  | _ -> assert false
-;;
-
 let pool = Task.setup_pool ~num_domains:2 ()
-
+(* 
 let _ =
   let t1 = Task.async pool (fun _ -> forceStream (streamList makeOdd)) in
   let t2 = Task.async pool (fun _ -> forceStream (streamList makeEven)) in
@@ -407,7 +420,8 @@ let _ =
   printf "%d  " (Chan.recv c);
   printf "%d  " (Chan.recv c);
   printf "%d" (Chan.recv c)
-;;
+;; *)
 
 (* Stream.mplus (Chan.recv c) (Chan.recv c) |> Stream.take |> List.iter (printf "%d") *)
 (* Stream.take (Chan.recv c) |> List.iter (printf "%d") *)
+(* дописать так чтобы chan превратился в stream и обьеденить с mplus *)

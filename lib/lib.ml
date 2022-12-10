@@ -327,7 +327,7 @@ module Stream = struct
    fun x y ->
     (* printf "Stream.mplus of `%a` and `%a`\n%!" pp x pp y; *)
     match x, y with
-    | Nil, _ ->  y
+    | Nil, _ -> y
     | Thunk l, r -> mplus r (Lazy.force l)
     | Cons (x, l), r -> Cons (x, lazy (mplus r (Lazy.force l)))
  ;;
@@ -382,8 +382,12 @@ let next_logic_var =
     !last
 ;;
 
-
-let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) ?(next_logic_var1 = next_logic_var)=
+let eval
+  ?(trace_svars = false)
+  ?(trace_uni = false)
+  ?(trace_calls = false)
+  ?(next_logic_var1 = next_logic_var)
+  =
   let open State in
   let open StateMonad in
   let open StateMonad.Syntax in
