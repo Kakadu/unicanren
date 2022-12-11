@@ -3,6 +3,7 @@
  (modules lib lib_tests test_numbers)
  (libraries
   ;GT
+  domainslib
   )
  ;  (instrumentation
  ;   (backend bisect_ppx))

@@ -1,4 +1,5 @@
 open Format
+open Domainslib
 
 module Term = struct
   type t =
@@ -380,6 +381,23 @@ let next_logic_var =
   fun () ->
     incr last;
     !last
+;;
+
+let c = Chan.make_unbounded ()
+
+let rec merge_stream n =
+  match Chan.recv_poll c with
+  | Some x -> Stream.mplus (Stream.return x) (merge_stream n)
+  | None -> Stream.Nil
+;;
+
+let rec force_stream x =
+  match x with
+  | Stream.Cons (x, y) ->
+    Chan.send c x;
+    force_stream (Lazy.force y)
+  | Stream.Nil -> c
+  | _ -> assert false
 ;;
 
 let eval
