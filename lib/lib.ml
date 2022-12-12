@@ -385,11 +385,6 @@ let next_logic_var =
 
 let c = Chan.make_unbounded ()
 
-let rec merge_stream n =
-  match Chan.recv_poll c with
-  | Some x -> Stream.mplus (Stream.return x) (merge_stream n)
-  | None -> Stream.Nil
-;;
 
 let rec force_stream x =
   match x with
@@ -441,14 +436,23 @@ let eval
          return (Stream.return subst2))
     | Conde [] -> assert false
     | CondeOf2 (x, y) -> eval x
-    | Conde (x :: xs) ->
-      let* st = read in
-      List.foldlm
-        (fun acc y ->
-          let* () = put st in
-          return (Stream.mplus acc) <*> eval y)
-        (eval x)
-        xs
+    | Conde lst ->
+      let pool = Task.setup_pool ~num_domains:2 () in
+      let rec merge_stream n =
+        let* st = read in
+        match Chan.recv_poll c with
+        | Some x -> let* () = put st in
+        return (Stream.mplus (Stream.return x)) <*> (merge_stream n)
+        | None -> return Stream.Nil
+      in
+      let make_task acc =
+        Task.async pool (fun _ ->
+          force_stream ((StateMonad.run (eval acc) State.empty)|>Result.get_ok)) in
+          let make_task_list lst =
+            let open StateMonad.Syntax in
+            List.map make_task lst in
+      Task.run pool (fun () -> List.iter (fun x -> Task.await pool x) (make_task_list lst));
+      merge_stream c
     | Conj [] -> assert false
     | Conj [ x ] -> eval x
     | Conj (x :: xs) ->

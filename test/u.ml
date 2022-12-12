@@ -440,7 +440,6 @@ let _ =
     (eval x)
     xs
 ;; *)
-let new_run = fun m st -> List.map snd (m st)
 
 let make_task acc =
   Task.async pool (fun _ ->
