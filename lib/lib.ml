@@ -385,13 +385,12 @@ let next_logic_var =
 
 let c = Chan.make_unbounded ()
 
-
 let rec force_stream x =
   match x with
   | Stream.Cons (x, y) ->
     Chan.send c x;
     force_stream (Lazy.force y)
-  | Stream.Nil -> c
+  | Stream.Nil -> ()
   | _ -> assert false
 ;;
 
@@ -441,17 +440,21 @@ let eval
       let rec merge_stream n =
         let* st = read in
         match Chan.recv_poll c with
-        | Some x -> let* () = put st in
-        return (Stream.mplus (Stream.return x)) <*> (merge_stream n)
+        | Some x ->
+          let* () = put st in
+          return (Stream.mplus (Stream.return x)) <*> merge_stream n
         | None -> return Stream.Nil
       in
       let make_task acc =
         Task.async pool (fun _ ->
-          force_stream ((StateMonad.run (eval acc) State.empty)|>Result.get_ok)) in
-          let make_task_list lst =
-            let open StateMonad.Syntax in
-            List.map make_task lst in
-      Task.run pool (fun () -> List.iter (fun x -> Task.await pool x) (make_task_list lst));
+          force_stream (StateMonad.run (eval acc) State.empty |> Result.get_ok))
+      in
+      let make_task_list lst =
+        let open StateMonad.Syntax in
+        StdLabels.List.map make_task lst
+      in
+      Task.run pool (fun () ->
+        StdLabels.List.iter (fun x -> Task.await pool x) (make_task_list lst));
       merge_stream c
     | Conj [] -> assert false
     | Conj [ x ] -> eval x
