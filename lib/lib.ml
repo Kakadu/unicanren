@@ -451,10 +451,10 @@ let eval
       in
       let make_task_list lst =
         let open StateMonad.Syntax in
-        StdLabels.List.map make_task lst
+        Stdlib.List.map make_task lst
       in
       Task.run pool (fun () ->
-        StdLabels.List.iter (fun x -> Task.await pool x) (make_task_list lst));
+        Stdlib.List.iter (fun x -> Task.await pool x) (make_task_list lst));
       merge_stream c
     | Conj [] -> assert false
     | Conj [ x ] -> eval x

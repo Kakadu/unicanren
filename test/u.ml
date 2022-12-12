@@ -264,8 +264,9 @@ let rec merge_Stream n =
   let open StateMonad in
   let* st = read in
   match Chan.recv_poll c with
-  | Some x -> let* () = put st in
-  return (Stream.mplus (Stream.return x)) <*> (merge_Stream n)
+  | Some x ->
+    let* () = put st in
+    return (Stream.mplus (Stream.return x)) <*> merge_Stream n
   | None -> return Stream.Nil
 ;;
 
@@ -443,7 +444,7 @@ let _ =
 
 let make_task acc =
   Task.async pool (fun _ ->
-    force_Stream ((StateMonad.run (eval acc) State.empty)|>Result.get_ok))
+    force_Stream (StateMonad.run (eval acc) State.empty |> Result.get_ok))
 ;;
 
 let make_task_list lst =
@@ -458,8 +459,12 @@ let new_conde lst =
 
 let _ =
   StateMonad.run
-  (new_conde
-    [ Fresh ("x", Unify (Var "x", Symbol "u")); Fresh ("x", Unify (Var "x", Symbol "v")) ]) State.empty
+    (eval
+    (Conde
+          [ fresh [ "x" ] (Unify (Var "x", Symbol "u"))
+          ; fresh [ "x" ] (Unify (Var "x", Symbol "v"))
+          ]))
+    State.empty
   |> Result.get_ok
   |> Stream.take
   |> List.iter (fun st -> printf "%a" (Subst.pp Value.pp) st)
