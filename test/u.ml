@@ -259,26 +259,26 @@ let c = Chan.make_unbounded ()
   | Some _ -> true
   | None -> false *)
 
-let rec merge_Stream n=
-  (* let strpls = ref Stream.Nil in
-  while recv_poll do         
-    strpls := Stream.mplus (Stream.return (Chan.recv c)) (!strpls)
-  done;
-  (!strpls) *)
-  match Chan.recv_poll c with 
-  | Some x -> Stream.mplus (Stream.return (x)) (merge_Stream n)
-  | None -> Stream.Nil
+let rec merge_Stream n =
+  let open StateMonad.Syntax in
+  let open StateMonad in
+  let* st = read in
+  match Chan.recv_poll c with
+  | Some x -> let* () = put st in
+  return (Stream.mplus (Stream.return x)) <*> (merge_Stream n)
+  | None -> return Stream.Nil
+;;
 
 let rec force_Stream x =
   match x with
   | Stream.Cons (x, y) ->
     Chan.send c x;
     force_Stream (Lazy.force y)
-  | Stream.Nil -> c
+  | Stream.Nil -> ()
   | _ -> assert false
 ;;
 
-let _ =
+(* let _ =
   let goal = Call ("appendo", [ Var "xs"; Var "ys"; g ]) in
   let goal1 = Call ("appendo", [ Var "xs"; Var "ys"; h ]) in
   let env =
@@ -305,12 +305,12 @@ let _ =
       force_Stream (StateMonad.run (eval goal1) env1 |> Result.get_ok))
   in
   let _ = Task.run pool (fun _ -> Task.await pool a, Task.await pool b) in
- merge_Stream c
+  merge_Stream c
   |> Stream.take ~n:(-1)
   |> fun xs ->
   Format.printf "Got %d answers\n%!" (List.length xs);
   xs
-;;
+;; *)
 
 let rec fib n = if n <= 2 then 1 else fib (n - 1) + fib (n - 2)
 
@@ -425,3 +425,43 @@ let _ =
 (* Stream.mplus (Chan.recv c) (Chan.recv c) |> Stream.take |> List.iter (printf "%d") *)
 (* Stream.take (Chan.recv c) |> List.iter (printf "%d") *)
 (* дописать так чтобы chan превратился в stream и обьеденить с mplus *)
+
+(* let new_conde lst =
+  let x = List.hd lst in
+  let xs = List.tl lst in
+  let open State in
+  let open StateMonad in
+  let open StateMonad.Syntax in
+  let* st = read in
+  List.foldlm
+    (fun acc y ->
+      let* () = put st in
+      return (Stream.mplus acc) <*> eval y)
+    (eval x)
+    xs
+;; *)
+let new_run = fun m st -> List.map snd (m st)
+
+let make_task acc =
+  Task.async pool (fun _ ->
+    force_Stream ((StateMonad.run (eval acc) State.empty)|>Result.get_ok))
+;;
+
+let make_task_list lst =
+  let open StateMonad.Syntax in
+  List.map make_task lst
+;;
+
+let new_conde lst =
+  Task.run pool (fun () -> List.iter (fun x -> Task.await pool x) (make_task_list lst));
+  merge_Stream c
+;;
+
+let _ =
+  StateMonad.run
+  (new_conde
+    [ Fresh ("x", Unify (Var "x", Symbol "u")); Fresh ("x", Unify (Var "x", Symbol "v")) ]) State.empty
+  |> Result.get_ok
+  |> Stream.take
+  |> List.iter (fun st -> printf "%a" (Subst.pp Value.pp) st)
+;;
