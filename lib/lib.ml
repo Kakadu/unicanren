@@ -436,9 +436,9 @@ let eval
     | Conde [] -> assert false
     | CondeOf2 (x, y) -> eval x
     | Conde lst ->
+      let* st = read in
       let pool = Task.setup_pool ~num_domains:2 () in
       let rec merge_stream n =
-        let* st = read in
         match Chan.recv_poll c with
         | Some x ->
           let* () = put st in
@@ -446,8 +446,8 @@ let eval
         | None -> return Stream.Nil
       in
       let make_task acc =
-        Task.async pool (fun _ ->
-          force_stream (StateMonad.run (eval acc) State.empty |> Result.get_ok))
+        Task.async pool (fun _ -> 
+          force_stream ((StateMonad.run (eval acc ) st)|> Result.get_ok))
       in
       let make_task_list lst =
         let open StateMonad.Syntax in
