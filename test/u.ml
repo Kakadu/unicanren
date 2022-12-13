@@ -113,8 +113,8 @@ let summ l r =
   |> List.iter (fun _st -> Format.printf "%a" (Subst.pp Value.pp) _st)
 ;; *)
 
-let g = makerev funct 700 Nil "y"
-let h = makerev funct 700 Nil "x"
+let g = makerev funct 8000 Nil "y"
+let h = makerev funct 5000 Nil "x"
 let failwithf fmt = Format.kasprintf failwith fmt
 
 let appendo_body =
@@ -471,7 +471,7 @@ let new_conde lst =
   |> List.iter (fun st -> printf "%a" (Subst.pp Value.pp) st)
 ;; *)
 
-let even_body =
+(* let even_body =
   Conde
     [ Unify (Var "q", Symbol "z")
     ; Fresh
@@ -490,4 +490,94 @@ let _ =
   |> Result.get_ok
   |> Stream.take ~n:1|>(fun xs -> printf "%d" (List.length xs))
   (* |> List.iter (fun st -> printf "%a" (Value.ppw st) (Value.var 10)) *)
+;; *)
+
+(* let _ =
+  let time = Sys.time() in
+  (let goal =
+    CondePar
+      [ Call ("appendo", [ Var "xs"; Var "ys"; g ])
+      ; Call ("appendo", [ Var "xs"; Var "ys"; g ])
+      ]
+  in
+  let env =
+    State.(
+      empty
+      |> "xs" --> Var 9
+      |> "ys" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  in
+  let a = StateMonad.run (eval goal) env in
+  match a with
+  | Result.Ok a ->
+    a
+    |> Stream.take ~n:(-1)
+    |> fun xs -> Format.printf "Got %d answers\n%!" (List.length xs)
+  | Error _ -> failwithf "%s %d" __FILE__ __LINE__);
+  printf "Execution CondePar time: %fs\n" (Sys.time() -. time)
 ;;
+let _ =
+  let time = Sys.time() in
+  (let goal =
+    Conde
+      [ Call ("appendo", [ Var "xs"; Var "ys"; g ])
+      ; Call ("appendo", [ Var "xs"; Var "ys"; g ])
+      ]
+  in
+  let env =
+    State.(
+      empty
+      |> "xs" --> Var 9
+      |> "ys" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  in
+  let a = StateMonad.run (eval goal) env in
+  match a with
+  | Result.Ok a ->
+    a
+    |> Stream.take ~n:(-1)
+    |> fun xs -> Format.printf "Got %d answers\n%!" (List.length xs)
+  | Error _ -> failwithf "%s %d" __FILE__ __LINE__);
+  Format.printf "Execution Conde time: %f" (Sys.time() -. time)
+;; *)
+
+let appendo_body =
+  CondePar
+    [ Conj [ Unify (Var "xs", Nil); Unify (Var "ys", Var "xys") ]
+    ; Fresh
+        ( "h"
+        , Fresh
+            ( "tmp"
+            , Fresh
+                ( "tl"
+                , Conj
+                    [ Unify (Cons (Var "h", Var "tl"), Var "xs")
+                    ; Unify (Cons (Var "h", Var "tmp"), Var "xys")
+                    ; Call ("appendo", [ Var "tl"; Var "ys"; Var "tmp" ])
+                    ] ) ) )
+    ]
+;;
+
+let g = makerev funct 50 Nil "y"
+
+let _ =
+  let time = Sys.time() in
+  (let goal =
+      Call ("appendo", [ Var "xs"; Var "ys"; g ])
+  in
+  let env =
+    State.(
+      empty
+      |> "xs" --> Var 9
+      |> "ys" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body)
+  in
+  let a = StateMonad.run (eval ~trace_uni:true goal) env in
+  match a with
+  | Result.Ok a ->
+    a
+    |> Stream.take ~n:(-1)
+    |> fun xs -> Format.printf "Got %d answers\n%!" (List.length xs)
+  | Error _ -> failwithf "%s %d" __FILE__ __LINE__);
+  Format.printf "Execution Conde time: %f" (Sys.time() -. time)
+;;  

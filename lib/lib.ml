@@ -429,7 +429,7 @@ let eval
       List.foldlm
         (fun acc y ->
           let* () = put st in
-          return (Stream.mplus acc) <*> eval y)
+          return (Stream.mplus acc) <*> (eval y))
         (eval x)
         xs
     | CondePar lst ->
@@ -443,7 +443,7 @@ let eval
         | _ -> assert false
       in
       let* st = read in
-      let pool = Task.setup_pool ~num_domains:2 () in
+      let pool = Task.setup_pool ~num_domains:12 () in
       let rec merge_stream n =
         match Chan.recv_poll c with
         | Some x ->
