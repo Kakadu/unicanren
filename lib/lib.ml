@@ -29,7 +29,7 @@ type goal =
   | Unify of Term.t * Term.t
   | Conj of goal list
   | Conde of goal list (* TODO: make non-empty list here *)
-  | CondeOf2 of goal * goal
+  | CondePar of goal list 
   | Fresh of string * goal
   | Call of string * Term.t list
   | TraceSVars of string list
@@ -44,7 +44,8 @@ let pp_goal =
     | Conde [] | Conj [] -> assert false
     | Conde xs ->
       fprintf ppf "(conde [ %a ])" (pp_print_list ~pp_sep:pp_print_space helper) xs
-    | CondeOf2 (x, y) -> fprintf ppf "(fresh (%a) %a)" helper x helper y
+    | CondePar xs ->
+      fprintf ppf "(conde [ %a ])" (pp_print_list ~pp_sep:pp_print_space helper) xs
     | Conj xs -> pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " && ") helper ppf xs
     | Fresh (s, g) -> fprintf ppf "(fresh (%s) %a)" s helper g
     | Call (name, args) ->
@@ -434,8 +435,15 @@ let eval
          let* () = put { st with lvars = subst2 } in
          return (Stream.return subst2))
     | Conde [] -> assert false
-    | CondeOf2 (x, y) -> eval x
-    | Conde lst ->
+    | Conde (x :: xs) ->
+      let* st = read in
+      List.foldlm
+        (fun acc y ->
+          let* () = put st in
+          return (Stream.mplus acc) <*> eval y)
+        (eval x)
+        xs
+    | CondePar lst ->
       let* st = read in
       let pool = Task.setup_pool ~num_domains:2 () in
       let rec merge_stream n =

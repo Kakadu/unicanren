@@ -457,10 +457,10 @@ let new_conde lst =
   merge_Stream c
 ;;
 
-(* let _ =
+let _ =
   StateMonad.run
   (eval (fresh [ "x" ]
-    (Conde
+    (CondePar
           [ Unify (Var "x", Symbol "u")
           ; Unify (Var "x", Symbol "v")
           ; Unify (Var "x", Symbol "w")
@@ -469,9 +469,9 @@ let new_conde lst =
   |> Result.get_ok
   |> Stream.take
   |> List.iter (fun st -> printf "%a" (Subst.pp Value.pp) st)
-;; *)
+;;
 
-let even_body =
+(* let even_body =
   Conde
     [ Unify (Var "q", Symbol "z")
     ; Fresh
@@ -485,9 +485,9 @@ let even_body =
 
 let _ =
   StateMonad.run
-    (eval (Call ("even", [ Var "q" ])))
+    (eval  (Call ("even", [ Var "q" ])))
     State.(empty |> "q" --> Var 10 |> add_rel "even" [ "q" ] even_body)
   |> Result.get_ok
-  |> Stream.take ~n:1
-  |> List.iter (fun st -> printf "%a" (Value.ppw st) (Value.var 10))
-;;
+  |> Stream.take ~n:1|>(fun xs -> printf "%d" (List.length xs))
+  (* |> List.iter (fun st -> printf "%a" (Value.ppw st) (Value.var 10)) *)
+;; *)
