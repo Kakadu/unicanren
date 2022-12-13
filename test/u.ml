@@ -457,7 +457,7 @@ let new_conde lst =
   merge_Stream c
 ;;
 
-let _ =
+(* let _ =
   StateMonad.run
   (eval (fresh [ "x" ]
     (CondePar
@@ -469,9 +469,9 @@ let _ =
   |> Result.get_ok
   |> Stream.take
   |> List.iter (fun st -> printf "%a" (Subst.pp Value.pp) st)
-;;
+;; *)
 
-(* let even_body =
+let even_body =
   Conde
     [ Unify (Var "q", Symbol "z")
     ; Fresh
@@ -490,4 +490,4 @@ let _ =
   |> Result.get_ok
   |> Stream.take ~n:1|>(fun xs -> printf "%d" (List.length xs))
   (* |> List.iter (fun st -> printf "%a" (Value.ppw st) (Value.var 10)) *)
-;; *)
+;;

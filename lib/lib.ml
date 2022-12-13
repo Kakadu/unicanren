@@ -29,7 +29,7 @@ type goal =
   | Unify of Term.t * Term.t
   | Conj of goal list
   | Conde of goal list (* TODO: make non-empty list here *)
-  | CondePar of goal list 
+  | CondePar of goal list
   | Fresh of string * goal
   | Call of string * Term.t list
   | TraceSVars of string list
@@ -384,17 +384,6 @@ let next_logic_var =
     !last
 ;;
 
-let c = Chan.make_unbounded ()
-
-let rec force_stream x =
-  match x with
-  | Stream.Cons (x, y) ->
-    Chan.send c x;
-    force_stream (Lazy.force y)
-  | Stream.Nil -> ()
-  | _ -> assert false
-;;
-
 let eval
   ?(trace_svars = false)
   ?(trace_uni = false)
@@ -444,6 +433,15 @@ let eval
         (eval x)
         xs
     | CondePar lst ->
+      let c = Chan.make_unbounded () in
+      let rec force_stream x =
+        match x with
+        | Stream.Cons (x, y) ->
+          Chan.send c x;
+          force_stream (Lazy.force y)
+        | Stream.Nil -> ()
+        | _ -> assert false
+      in
       let* st = read in
       let pool = Task.setup_pool ~num_domains:2 () in
       let rec merge_stream n =
@@ -454,8 +452,8 @@ let eval
         | None -> return Stream.Nil
       in
       let make_task acc =
-        Task.async pool (fun _ -> 
-          force_stream ((StateMonad.run (eval acc ) st)|> Result.get_ok))
+        Task.async pool (fun _ ->
+          force_stream (StateMonad.run (eval acc) st |> Result.get_ok))
       in
       let make_task_list lst =
         let open StateMonad.Syntax in
