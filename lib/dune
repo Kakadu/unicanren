@@ -1,6 +1,6 @@
 (library
  (name unicanren)
- (modules lib lib_tests test_numbers)
+ (modules lib lib_tests test_numbers promises)
  (libraries
   ;GT
   )

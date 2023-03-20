@@ -117,7 +117,7 @@ type 'a state = (st, 'a) StateMonad.t
 (** A stream of answers of calculation *)
 module Stream : sig
   type 'a t
-
+  val mplus : 'a t -> 'a t -> 'a t
   val take : ?n:int -> 'a t -> 'a list
 end
 
