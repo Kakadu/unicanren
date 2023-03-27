@@ -133,17 +133,18 @@ let appendo10 lst1 lst2 () =
     let s = StateMonad.run (eval g) state in
     s
   in 
-  let b1 = fork (fun () -> Printf.printf "hi1\n"; let res = wrap goal in Printf.printf "by1\n"; res) in
-  let b2 = fork (fun () -> Printf.printf "hi2\n"; let res = wrap goal in Printf.printf "by2\n"; res) in 
-  let b3 = fork (fun () -> Printf.printf "hi3\n"; let res = wrap goal in Printf.printf "by3\n"; res) in 
-  let b4 = fork (fun () -> Printf.printf "hi4\n"; let res = wrap goal in Printf.printf "by4\n"; res) in 
-  let b5 = fork (fun () -> Printf.printf "hi5\n"; let res = wrap goal in Printf.printf "by5\n"; res) in 
-  let b6 = fork (fun () -> Printf.printf "hi6\n"; let res = wrap goal in Printf.printf "by6\n"; res) in 
-  let b7 = fork (fun () -> Printf.printf "hi7\n"; let res = wrap goal in Printf.printf "by7\n"; res) in 
-  let b8 = fork (fun () -> Printf.printf "hi8\n"; let res = wrap goal in Printf.printf "by8\n"; res) in 
-  let b9 = fork (fun () -> Printf.printf "hi9\n"; let res = wrap goal in Printf.printf "by9\n"; res) in 
-  let b10 = fork (fun () -> Printf.printf "hi10\n"; let res = wrap goal in Printf.printf "by10\n"; res) in 
+  let b1 = fork (fun () -> Printf.printf "hi1 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by1 -- %f\n" (Sys.time()); res) in
+  let b2 = fork (fun () -> Printf.printf "hi2 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by2 -- %f\n" (Sys.time()); res) in 
+  let b3 = fork (fun () -> Printf.printf "hi3 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by3 -- %f\n" (Sys.time()); res) in 
+  let b4 = fork (fun () -> Printf.printf "hi4 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by4 -- %f\n" (Sys.time()); res) in 
+  let b5 = fork (fun () -> Printf.printf "hi5 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by5 -- %f\n" (Sys.time()); res) in 
+  let b6 = fork (fun () -> Printf.printf "hi6 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by6 -- %f\n" (Sys.time()); res) in 
+  let b7 = fork (fun () -> Printf.printf "hi7 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by7 -- %f\n" (Sys.time()); res) in 
+  let b8 = fork (fun () -> Printf.printf "hi8 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by8 -- %f\n" (Sys.time()); res) in 
+  let b9 = fork (fun () -> Printf.printf "hi9 -- %f\n" (Sys.time()); let res = wrap goal in Printf.printf "by9 -- %f\n" (Sys.time()); res) in 
+  let b10 = fork (fun () -> Printf.printf "hi10 -- %f\n"( Sys.time()); let res = wrap goal in Printf.printf "by10 -- %f\n"( Sys.time()); res) in 
   let mergeStreams x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 = match (x1, x2, x3, x4, x5, x6, x7, x8, x9, x10) with
+  (* change to List.foldlm *)
       | (Result.Ok a1, Result.Ok a2, 
       Result.Ok a3, Result.Ok a4, 
       Result.Ok a5, Result.Ok a6, 
@@ -159,14 +160,7 @@ let appendo10 lst1 lst2 () =
             )
           )
           (Stream.mplus a9 a10)
-      |> Stream.take ~n:(-1) (* !!! remove for other tests *)
-
-          (* todo change to foldlm (need <*>)
-          StateMonad.List.foldlm 
-            (fun acc y -> 
-              (Stream.mplus acc) <*> y)
-            a1
-            [a2; a3; a4; a5; a6; a7; a8; a9; a10] *)
+      |> Stream.take ~n:(-1)
       | _ -> failwithf "%s %d" __FILE__ __LINE__
   in 
   let res = pure mergeStreams <*> b1 <*> b2 <*> b3 <*> b4 <*> b5 <*> b6 <*> b7 <*> b8 <*> b9 <*> b10 in
@@ -202,7 +196,7 @@ let lst_y len = makerev funct len Nil "y"
 let lst_x len = makerev funct len Nil "x"
 
 (* sizes of lists *)
-let lens = [512]
+let lens = [128; 256; 512]
 
 (*
 let _ = List.iter (fun len -> 
