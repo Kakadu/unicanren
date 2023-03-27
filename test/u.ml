@@ -8,6 +8,74 @@ let _ =
 ;;
 
 (*
+
+let _ =
+  let lst1 = lst_y 80192 in
+  let lst2 = lst_x 8192 in
+  let time = Sys.time() in
+  let goal =
+    Conde [
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+      Call
+        ( "appendo"
+        , [ lst1 ; lst2 ; Var "xs" ] );
+    ]
+  in
+  (run_optimistically
+     goal
+     State.(
+       empty
+       |> "xs" --> Var 10
+       |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body
+       |> add_rel "reverso" [ "xy"; "yx" ] reverso_body)
+  |> fun xs ->
+  printf "ET: %f\nAnswers %d" (Sys.time() -. time) (List.length xs);
+  printf "@[<v>";
+  printf "@]%!");
+  ;;
+
+*)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(* старое
 let testConde2Rev = 
   let time = Sys.time() in 
   let _ = Format.printf "Conde of reverso of list ['y'] * %d\n" len in
