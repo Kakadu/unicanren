@@ -1,8 +1,9 @@
 (library
  (name unicanren)
- (modules lib lib_tests test_numbers promises external_paral)
+ (modules lib lib_tests test_numbers promises external_paral async external_async)
  (libraries
   ;GT
+  lwt.unix
   )
  ;  (instrumentation
  ;   (backend bisect_ppx))
