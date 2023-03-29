@@ -237,7 +237,7 @@ let _ = List.iter (fun len ->
 ;;
 *)
 
-
+(*
 let _ = List.iter (fun len -> 
   Format.printf "10 appendo 'y'*%d and 'x'*%d\n" len len; 
   runTask (appendo10 (lst_y len) (lst_x len)); 
@@ -245,3 +245,4 @@ let _ = List.iter (fun len ->
   ) lens;
   close_out output
 ;;
+*)
