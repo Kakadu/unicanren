@@ -203,7 +203,7 @@ let append10 ~domain_mgr =
         a
     | _ -> failwithf "%s %d" __FILE__ __LINE__)
     in
-  (* i will optimise it with Lists and fold*)
+  (* i will optimise it with Lists and fold *)
   let a1 = Eio.Domain_manager.run domain_mgr (test lstX lstY) in
   let a2 = Eio.Domain_manager.run domain_mgr (test lstX lstY) in
   let a3 = Eio.Domain_manager.run domain_mgr (test lstX lstY) in
@@ -234,5 +234,38 @@ let append10 ~domain_mgr =
       )
 ;;
 
+(* reverso x x*)
+let reverso2var ~domain_mgr =
+  let time = Sys.time() in
+  let test () = 
+    let goal1 = Call ("reverso", [Var "xs"; Var "xs"]) in
+    let state = State.(
+      empty
+      |> "xs" --> Var 10
+      |> add_rel "appendo" [ "xs"; "ys"; "xys" ] appendo_body
+      |> add_rel "reverso" [ "xy"; "yx" ] reverso_body
+    ) in
+    let wrap g = 
+      let s = StateMonad.run (eval g) state in
+      s
+    in (match (wrap goal1) with
+    | Result.Ok a -> 
+        a
+    | _ -> failwithf "%s %d" __FILE__ __LINE__)
+    in
+  let stream1 = Eio.Domain_manager.run domain_mgr (test) in
+  let stream2 = Eio.Domain_manager.run domain_mgr (test) in
+  Stream.mplus stream1 stream2 
+  |> Stream.take ~n:1
+  |> (fun xs ->
+        traceln "ET: %f, Answers: %d" (Sys.time() -. time) (List.length xs);
+        List.iter (fun st ->
+            let str = Format.asprintf "%a\n" Value.pp (Value.walk st (Value.var 10)) in 
+            Printf.fprintf output "%s" str;
+        ) xs
+      )
+;;
+
+
 let _ = Eio_main.run @@ fun env ->
-  append10 ~domain_mgr:(Eio.Stdenv.domain_mgr env);;
+  reverso2var ~domain_mgr:(Eio.Stdenv.domain_mgr env);;

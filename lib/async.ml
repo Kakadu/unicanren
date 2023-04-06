@@ -1,4 +1,3 @@
-open Printf
 
 module type Scheduler = sig
   type 'a promise
