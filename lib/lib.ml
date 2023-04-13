@@ -25,6 +25,7 @@ type goal =
   | Unify of Term.t * Term.t
   | Conj of goal list
   | Conde of goal list (* TODO: make non-empty list here *)
+  | CondePar of goal list (* TODO *)
   | Fresh of string * goal
   | Call of string * Term.t list
   | TraceSVars of string list
@@ -39,6 +40,8 @@ let pp_goal =
     | Conde [] | Conj [] -> assert false
     | Conde xs ->
       fprintf ppf "(conde [ %a ])" (pp_print_list ~pp_sep:pp_print_space helper) xs
+    | CondePar xs ->
+      fprintf ppf "(condePar [ %a ])" (pp_print_list ~pp_sep:pp_print_space helper) xs
     | Conj xs -> pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " && ") helper ppf xs
     | Fresh (s, g) -> fprintf ppf "(fresh (%s) %a)" s helper g
     | Call (name, args) ->
@@ -378,7 +381,7 @@ let next_logic_var =
     !last
 ;;
 
-let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
+let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) ?domain_mgr=
   let open State in
   let open StateMonad in
   let open StateMonad.Syntax in
@@ -420,6 +423,18 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
           let* () = put st in
           return (Stream.mplus acc) <*> eval y)
         (eval x)
+        xs
+    | CondePar [] -> assert false
+    | CondePar (x :: xs) ->
+      let evalx = match domain_mgr with
+        | None -> eval x
+        | Some mgr -> Eio.Domain_manager.run mgr (fun () -> eval x) in
+      let* st = read in
+      List.foldlm 
+        (fun acc y ->
+          let* () = put st in
+          return (Stream.mplus acc) <*> eval y)
+        evalx
         xs
     | Conj [] -> assert false
     | Conj [ x ] -> eval x

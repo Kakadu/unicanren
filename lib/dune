@@ -1,6 +1,6 @@
 (library
  (name unicanren)
- (modules lib lib_tests test_numbers promises external_paral async external_async eio_example external_eio)
+ (modules lib lib_tests test_numbers promises lib_paral_tests)
  (libraries
  eio_main
   ;GT

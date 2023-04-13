@@ -267,5 +267,5 @@ let reverso2var ~domain_mgr =
 ;;
 
 
-let _ = Eio_main.run @@ fun env ->
-  reverso2var ~domain_mgr:(Eio.Stdenv.domain_mgr env);;
+(* let _ = Eio_main.run @@ fun env ->
+  reverso2var ~domain_mgr:(Eio.Stdenv.domain_mgr env);; *)
