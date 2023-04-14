@@ -302,41 +302,40 @@ module Stream = struct
   type 'a t =
     | Nil (** Empty stream *)
     | Cons of 'a * 'a t lazy_t (** An answer and lazy calculation of rest of answers *)
-  (*
     | Thunk of 'a t lazy_t (** Deferred evaluation of answers *)
-*)
 
   let rec pp ppf = function
     | Nil -> fprintf ppf "Nil"
     | Cons (_, (lazy tl)) -> fprintf ppf "(Cons (_, %a))" pp tl
+    | Thunk _ -> fprintf ppf "(Thunk _)"
   ;;
 
   let nil = Nil
   let return x = Cons (x, lazy Nil)
 
-  (* let cons x xs = Cons (x, xs) *)
-  (* let from_fun zz = Thunk (lazy (zz ())) *)
+  let cons x xs = Cons (x, xs)
+  let from_fun zz = Thunk (lazy (zz ()))
 
-  (*   let force = function
+  let force = function
     | Thunk (lazy zz) -> zz
     | xs -> xs
   ;;
- *)
+ 
   let rec mplus : 'a. 'a t -> 'a t -> 'a t =
    fun x y ->
     (* printf "Stream.mplus of `%a` and `%a`\n%!" pp x pp y; *)
     match x, y with
     | Nil, _ -> y
-    (* | Thunk l, r -> mplus r (Lazy.force l) *)
+    | Thunk l, r -> mplus r (Lazy.force l)
     | Cons (x, l), r -> Cons (x, lazy (mplus r (Lazy.force l)))
  ;;
 
-  (*   let rec bind s f =
+  let rec bind s f =
     match s with
     | Nil -> Nil
     | Cons (x, s) -> mplus (f x) (from_fun (fun () -> bind (Lazy.force s) f))
     | Thunk zz -> from_fun (fun () -> bind (Lazy.force zz) f)
-  ;; *)
+  ;;
 
   let from_funm : (unit -> 'a t state) -> 'a t state =
    fun f ->
@@ -352,9 +351,9 @@ module Stream = struct
     let open StateMonad.Syntax in
     let* init = s in
     match init with
-    (* | Thunk zz ->
+   | Thunk zz ->
       (* Bullshit ? *)
-      from_funm (fun () -> bindm (return (Lazy.force zz)) f) *)
+      from_funm (fun () -> bindm (return (Lazy.force zz)) f)
     | Nil -> return Nil
     | Cons (x, s) ->
       let* l = f x in
@@ -368,7 +367,7 @@ module Stream = struct
       | Nil -> []
       | _ when n = 0 -> []
       | Cons (s, (lazy tl)) -> s :: helper (n - 1) tl
-      (* | Thunk (lazy zz) -> helper n zz *)
+      | Thunk (lazy zz) -> helper n zz 
     in
     helper n
   ;;
@@ -381,7 +380,7 @@ let next_logic_var =
     !last
 ;;
 
-let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) ?domain_mgr=
+let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) =
   let open State in
   let open StateMonad in
   let open StateMonad.Syntax in
@@ -425,17 +424,63 @@ let eval ?(trace_svars = false) ?(trace_uni = false) ?(trace_calls = false) ?dom
         (eval x)
         xs
     | CondePar [] -> assert false
-    | CondePar (x :: xs) ->
-      let evalx = match domain_mgr with
-        | None -> eval x
-        | Some mgr -> Eio.Domain_manager.run mgr (fun () -> eval x) in
+    | CondePar lst -> 
+      let queue = Eio.Stream.create max_int in
+      let rec force_stream x = 
+        match x with
+        | Stream.Cons (x, y) ->
+          Eio.Stream.add queue x;
+          force_stream (Lazy.force y)
+        | Stream.Nil -> ()
+        | _ -> assert false
+      in
       let* st = read in
-      List.foldlm 
-        (fun acc y ->
-          let* () = put st in
-          return (Stream.mplus acc) <*> eval y)
-        evalx
-        xs
+      let rec merge_stream queue =
+        match Eio.Stream.take_nonblocking queue with 
+        | Some x -> Stream.mplus (Stream.return x) (Stream.Thunk (lazy (merge_stream queue)))
+        | None -> Stream.Nil
+      in
+      let make_task acc ~domain_mgr =
+        Eio.Domain_manager.run domain_mgr (fun () -> force_stream (StateMonad.run (eval acc) st |> Result.get_ok))
+      in
+      let make_task_list ~domain_mgr =
+        Stdlib.List.iter (make_task ~domain_mgr:domain_mgr) lst
+      in 
+      Eio_main.run @@ fun env ->
+        make_task_list ~domain_mgr:(Eio.Stdenv.domain_mgr env);
+      return (merge_stream queue)
+    (*
+      let c = Chan.make_unbounded () in
+      let rec force_stream x =
+        match x with
+        | Stream.Cons (x, y) ->
+          Chan.send c x;
+          force_stream (Lazy.force y)
+        | Stream.Nil -> ()
+        | _ -> assert false
+      in
+      let* st = read in
+      let pool = Task.setup_pool ~num_domains:12 () in
+      let rec merge_stream c =
+        match Chan.recv_poll c with
+        | Some x ->
+          (* let* () = put st in *)
+          (* return (Stream.mplus (Stream.return x)) >>= (fun _ -> merge_stream c) *)
+         Stream.mplus (Stream.return x) (Stream.Thunk (lazy (merge_stream c)))
+        | None ->  Stream.Nil
+      in
+      let make_task acc =
+        Task.async pool (fun _ ->
+          force_stream (StateMonad.run (eval acc) st |> Result.get_ok))
+      in
+      let make_task_list lst =
+
+        Stdlib.List.map make_task lst
+      in
+      Task.run pool (fun () ->
+        Stdlib.List.iter (fun x -> Task.await pool x) (make_task_list lst));
+      return (merge_stream c)
+    *)
     | Conj [] -> assert false
     | Conj [ x ] -> eval x
     | Conj (x :: xs) ->

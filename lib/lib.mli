@@ -126,6 +126,5 @@ val eval
   :  ?trace_svars:bool
   -> ?trace_uni:bool
   -> ?trace_calls:bool
-  -> ?domain_mgr:(Eio.Domain_manager.t)
   -> goal
   -> subst Stream.t state
