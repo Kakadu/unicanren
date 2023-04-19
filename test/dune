@@ -1,8 +1,10 @@
-(executable
- (name u)
+(executables
+ (names u test2)
+ (modules u test2)
  (libraries unicanren)
+ (modes exe byte)
  (preprocess
   (pps ppx_inline_test)))
 
 (cram
- (deps ./u.exe))
+ (deps ./u.exe ./test2.bc))
